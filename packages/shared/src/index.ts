@@ -1,0 +1,238 @@
+import { z } from 'zod';
+
+export const APP_NAME = 'MentorMatch';
+export const DEFAULT_AVATAR =
+	'https://ui-avatars.com/api/?name=MentorMatch&background=0F172A&color=F8FAFC';
+
+export const USER_ROLES = ['mentee', 'mentor', 'admin'] as const;
+export const REQUEST_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export const BOOKING_STATUSES = ['pending', 'accepted', 'rejected', 'cancelled', 'completed'] as const;
+export const LOCATION_TYPES = ['online', 'in_person'] as const;
+export const RECORD_STATUSES = ['completed', 'on_going'] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+export type LocationType = (typeof LOCATION_TYPES)[number];
+export type RecordStatus = (typeof RECORD_STATUSES)[number];
+
+export interface SessionUser {
+	id: number;
+	email: string;
+	role: UserRole;
+	isMentorApproved: boolean;
+	fullName: string;
+	profileImageUrl: string;
+}
+
+export interface EducationRecord {
+	id: number;
+	university: string;
+	degree: string;
+	major: string;
+	startYear: number;
+	endYear: number | null;
+	status: RecordStatus;
+	logoUrl: string | null;
+	description: string | null;
+}
+
+export interface ExperienceRecord {
+  id: number;
+  company: string;
+	position: string;
+	industry: string | null;
+	expertise: string[];
+	startYear: number;
+	endYear: number | null;
+	status: RecordStatus;
+  description: string | null;
+}
+
+export interface MentorCard {
+  id: number;
+  fullName: string;
+  profileImageUrl: string;
+  headline: string;
+  company: string;
+  location: string | null;
+  skills: string[];
+}
+
+export interface MentorProfile {
+  id: number;
+  fullName: string;
+  profileImageUrl: string;
+  bio: string | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  websiteUrl: string | null;
+  skills: string[];
+  educations: EducationRecord[];
+  experiences: ExperienceRecord[];
+}
+
+export interface AvailabilitySlotRecord {
+  id: number;
+  mentorId: number;
+  title: string | null;
+  startTime: string;
+  durationMins: number;
+  locationType: LocationType;
+  city: string;
+  address: string;
+  maxParticipants: number;
+  note: string | null;
+  isBooked: boolean;
+  isRequested?: boolean;
+}
+
+export interface BookingRecord {
+  id: number;
+  topic: string;
+  description: string | null;
+  note: string | null;
+  numParticipants: number;
+  status: BookingStatus;
+  createdAt: string;
+  updatedAt: string;
+  slot: AvailabilitySlotRecord | null;
+  counterpart: {
+    id: number;
+    email: string;
+    fullName: string;
+    profileImageUrl: string;
+  };
+}
+
+const nonEmptyString = z.string().trim().min(1);
+const optionalNullableString = z.string().trim().max(2000).nullable().optional();
+
+export const educationSchema = z.object({
+	id: z.number().int().positive().optional(),
+	university: nonEmptyString.max(200),
+	degree: nonEmptyString.max(200),
+	major: nonEmptyString.max(200),
+	startYear: z.number().int().min(1900).max(2100),
+	endYear: z.number().int().min(1900).max(2100).nullable().optional(),
+	status: z.enum(RECORD_STATUSES).default('on_going'),
+	logoUrl: z.url().nullable().optional(),
+	description: optionalNullableString
+});
+
+export const experienceSchema = z.object({
+	id: z.number().int().positive().optional(),
+	company: nonEmptyString.max(200),
+	position: nonEmptyString.max(200),
+	industry: z.string().trim().max(200).nullable().optional(),
+	expertise: z.array(z.string().trim().min(1).max(100)).default([]),
+	startYear: z.number().int().min(1900).max(2100),
+	endYear: z.number().int().min(1900).max(2100).nullable().optional(),
+	status: z.enum(RECORD_STATUSES).default('on_going'),
+	description: optionalNullableString
+});
+
+export const registerSchema = z.object({
+	fullName: z.string().trim().min(1).max(255),
+	email: z.email().transform((value) => value.trim().toLowerCase()),
+	password: z.string().min(8).max(128),
+	role: z.enum(['mentee', 'mentor']).default('mentee')
+});
+
+export const loginSchema = z.object({
+	email: z.email().transform((value) => value.trim().toLowerCase()),
+	password: z.string().min(1).max(128)
+});
+
+export const profileUpdateSchema = z.object({
+	fullName: z.string().trim().min(1).max(255),
+	bio: optionalNullableString,
+	location: z.string().trim().max(255).nullable().optional(),
+	phone: z.string().trim().max(50).nullable().optional(),
+	profileImageUrl: z.url().nullable().optional(),
+	linkedinUrl: z.url().nullable().optional(),
+	instagramUrl: z.url().nullable().optional(),
+	facebookUrl: z.url().nullable().optional(),
+	websiteUrl: z.url().nullable().optional(),
+	educations: z.array(educationSchema).default([]),
+	experiences: z.array(experienceSchema).default([]),
+	mentorSkills: z.array(z.string().trim().min(1).max(100)).default([])
+});
+
+export const mentorRequestSchema = z.object({
+	documentUrl: z.url(),
+	note: optionalNullableString
+});
+
+export const mentorSearchSchema = z.object({
+	q: z.string().trim().max(120).optional().default(''),
+	city: z.string().trim().max(120).optional().default(''),
+	tag: z.string().trim().max(120).optional().default(''),
+	limit: z.coerce.number().int().min(1).max(50).optional().default(12)
+});
+
+export const availabilityCreateSchema = z.object({
+	title: z.string().trim().max(255).default('Mentorship Session'),
+	startTime: z.iso.datetime(),
+	durationMins: z.coerce.number().int().min(15).max(480),
+	locationType: z.enum(LOCATION_TYPES).default('in_person'),
+	city: z.string().trim().min(1).max(120),
+	address: z.string().trim().min(1).max(255),
+	maxParticipants: z.coerce.number().int().min(1).max(20).default(2),
+	note: optionalNullableString
+});
+
+export const bookingCreateSchema = z.object({
+	availabilitySlotId: z.coerce.number().int().positive(),
+	topic: z.string().trim().min(1).max(255),
+	description: optionalNullableString,
+	note: optionalNullableString,
+	numParticipants: z.coerce.number().int().min(1).max(20).default(1)
+});
+
+export const bookingRespondSchema = z.object({
+	response: z.enum(['accepted', 'rejected'])
+});
+
+export const bookingListSchema = z.object({
+	role: z.enum(['mentee', 'mentor'])
+});
+
+export const bookingHistorySchema = z.object({
+	role: z.enum(['mentee', 'mentor'])
+});
+
+export const mentorModeSchema = z.object({
+	role: z.enum(['mentee', 'mentor']).optional()
+});
+
+export class AppError extends Error {
+	status: number;
+	code: string;
+
+	constructor(status: number, code: string, message: string) {
+		super(message);
+		this.name = 'AppError';
+		this.status = status;
+		this.code = code;
+	}
+}
+
+export function nowIso(): string {
+	return new Date().toISOString();
+}
+
+export function ensureAvatar(url: string | null | undefined): string {
+	return url?.trim() ? url : DEFAULT_AVATAR;
+}
+
+export function parseJsonArray(value: string | null | undefined): string[] {
+	if (!value) return [];
+
+	try {
+		const parsed = JSON.parse(value);
+		return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+	} catch {
+		return [];
+	}
+}

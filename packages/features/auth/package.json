@@ -1,0 +1,23 @@
+{
+  "name": "@mentormatch/feature-auth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@mentormatch/db": "workspace:*",
+    "@mentormatch/shared": "workspace:*",
+    "bcryptjs": "^3.0.2",
+    "jose": "^6.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

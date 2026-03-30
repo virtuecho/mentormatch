@@ -1,0 +1,27 @@
+{
+  "name": "mentormatch",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "pnpm --filter @mentormatch/web dev",
+    "build": "pnpm --filter @mentormatch/web exec vite build",
+    "check": "turbo run check",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:e2e": "pnpm --filter @mentormatch/web test:e2e",
+    "cf:deploy": "pnpm build && pnpm --filter @mentormatch/web exec wrangler deploy",
+    "cf:upload": "pnpm build && pnpm --filter @mentormatch/web exec wrangler versions upload",
+    "cf:preview": "pnpm --filter @mentormatch/web cf:preview"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.13.5",
+    "@types/node": "^22.18.1",
+    "drizzle-kit": "^0.31.10",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

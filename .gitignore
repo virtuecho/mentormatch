@@ -1,0 +1,14 @@
+node_modules/
+.pnpm-store/
+.turbo/
+.svelte-kit/
+.wrangler/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+.DS_Store
+.agent-notes/
