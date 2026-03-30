@@ -1,18 +1,18 @@
 # Architecture
 
-MentorMatch is structured as a single-deploy full-stack workspace. The application is served from one Cloudflare Worker while keeping business logic, persistence, UI, and shared contracts split into maintainable packages.
+MentorMatch is organized as a single-deploy full-stack workspace. The active application is a SvelteKit Worker in `apps/web`, while database access, business rules, contracts, and UI building blocks are isolated into separate packages.
 
 ## High-Level Model
 
 ```text
 Browser
-  -> apps/web route or page
-    -> feature module
-      -> database layer
+  -> apps/web page, action, or API route
+    -> packages/features/*
+      -> packages/db
         -> Cloudflare D1
 ```
 
-Only the web application is deployed. Shared packages are bundled into the deployed Worker as dependencies and are not deployed independently.
+Only `apps/web` is deployed. Everything under `packages/*` is bundled into that Worker as internal dependencies.
 
 ## Repository Structure
 
@@ -20,46 +20,55 @@ Only the web application is deployed. Shared packages are bundled into the deplo
 MentorMatch/
 ├── apps/
 │   └── web/
-│       ├── src/routes/         # public pages and explicit API handlers
-│       ├── src/lib/server/     # Worker-only server helpers
-│       └── src/lib/            # app-local frontend and shared helpers
+│       ├── src/routes/         # public pages, page.server files, explicit API handlers
+│       ├── src/lib/server/     # Worker-only helpers for auth, db access, cookies, errors
+│       ├── src/lib/            # app-local utilities, styles, navigation, assets
+│       └── wrangler.jsonc      # Worker configuration and D1 binding
 ├── packages/
-│   ├── db/                     # database schema, migrations, repositories
-│   ├── features/               # business domains
-│   ├── shared/                 # types, contracts, validation schemas
-│   ├── ui/                     # reusable Svelte UI building blocks
-│   └── config/                 # shared tooling configuration
+│   ├── db/                     # D1 client, SQL helpers, migrations
+│   ├── features/               # auth, mentors, availability, bookings, profile
+│   ├── shared/                 # contracts, schemas, errors, shared types
+│   ├── ui/                     # reusable Svelte components
+│   └── config/                 # shared toolchain config
 ├── tests/
 │   ├── integration/
-│   └── e2e/
+│   ├── e2e/
+│   └── fixtures/
 └── .github/workflows/
 ```
 
 ## Deployment Model
 
-The intended production topology is:
+The current deployment target is:
 
-- one deployable app: `apps/web`
-- one Worker runtime: Cloudflare Workers
-- one database binding: `DB` for Cloudflare D1
-- optional future external adapters if database strategy changes
+- one Worker script: `mentormatch`
+- one D1 binding: `DB`
+- one SvelteKit app build output under `apps/web/.svelte-kit/cloudflare`
 
-This keeps routing, auth, server-side logic, and UI delivery in one runtime while avoiding the split deployment model of the previous frontend and backend repositories.
+The repository root exposes `pnpm cf:upload`, which runs:
+
+1. `pnpm build`
+2. `wrangler versions upload` inside `apps/web`
+
+This keeps the monorepo installation flow at the root while delegating the actual Worker upload to the deployable app package.
 
 ## Layer Responsibilities
 
 ### `apps/web`
 
-This is the presentation and transport layer.
+This package owns:
 
-- SvelteKit pages render the user experience
-- explicit HTTP endpoints live under route handlers
-- request-scoped auth and cookie/session handling live here
-- page loads, actions, and API handlers call feature modules rather than embedding business rules directly
+- page rendering
+- page loads and actions
+- explicit HTTP APIs under `src/routes/api/*`
+- request-scoped auth/session wiring in [hooks.server.ts](/Users/admin/MentorMatch/apps/web/src/hooks.server.ts)
+- Worker-facing config in [wrangler.jsonc](/Users/admin/MentorMatch/apps/web/wrangler.jsonc)
+
+It is the only package that should know about SvelteKit route structure and Worker deployment details.
 
 ### `packages/features/*`
 
-Each business domain lives in its own feature package:
+Feature packages hold business logic by domain:
 
 - `auth`
 - `profile`
@@ -67,99 +76,102 @@ Each business domain lives in its own feature package:
 - `availability`
 - `bookings`
 
-Each package should own:
+These packages own:
 
+- validation orchestration
 - domain rules
-- input validation orchestration
 - service-level logic
-- test fixtures close to the feature
-
-This keeps new functionality additive and modular rather than spreading changes across unrelated folders.
+- unit tests close to the feature
 
 ### `packages/db`
 
-This package isolates persistence concerns:
+The database package owns:
 
-- schema definitions
-- migrations
-- repository functions
-- database client wiring
+- the D1 client
+- SQL execution helpers
+- schema migrations
+- persistence adapters used by feature packages
 
-Business packages depend on database abstractions from here instead of embedding SQL in UI or route files.
+Route handlers and Svelte components should not embed direct SQL.
 
 ### `packages/shared`
 
-This package holds code that must remain framework-agnostic:
+This package contains framework-agnostic shared code:
 
-- types
-- schemas
-- API contracts
-- reusable utility functions
+- error types
+- validation schemas
+- shared types
+- contracts and utility helpers
 
 ### `packages/ui`
 
-This package contains reusable Svelte components and visual primitives shared across pages or features.
+This package contains reusable Svelte UI primitives used across the Worker app.
 
-## Request Flow
+## Request Flows
 
-### Page Request
+### Public Page
 
 ```text
 Browser
-  -> SvelteKit page/load/action
-    -> feature service
-      -> repository
-        -> D1
+  -> /
+  -> /login
+  -> /signup
 ```
+
+These pages are available without a session.
+
+### Authenticated Page
+
+```text
+Browser
+  -> apps/web/src/routes/+layout.server.ts
+    -> session lookup via hooks.server.ts
+      -> protected page load/action
+        -> feature module
+          -> db
+```
+
+Protected routes redirect unauthenticated users to `/login`.
 
 ### API Request
 
 ```text
 Browser or client
   -> apps/web/src/routes/api/*
-    -> feature service
-      -> repository
+    -> feature module
+      -> packages/db
         -> D1
 ```
 
-## Public vs Hidden Backend Surface
+## Runtime Bindings
 
-The architecture supports both patterns:
+The Worker currently expects:
 
-- public API handlers for explicit integrations
-- server-only logic executed during page loads or actions
+- `DB` for D1
+- `ASSETS` for static assets
+- `AUTH_SECRET` for session/auth operations
 
-Database access and secrets remain server-side. Only routes intentionally exposed under the app become public HTTP surfaces.
+If `DB` or `AUTH_SECRET` are missing, public pages can still render basic content, but authenticated flows and data-backed operations will be limited.
 
 ## Testing Strategy
 
-The workspace is designed for layered verification:
+The current workspace uses:
 
-- unit tests inside features and shared packages
-- integration tests for route wiring and repository behavior
-- Playwright end-to-end tests for user flows
+- `pnpm lint`
+- `pnpm check`
+- `pnpm test:unit`
+- `pnpm test:e2e`
+- `pnpm build`
 
-This allows business logic to be tested independently from the browser UI while keeping the deployed Worker behavior covered.
+Coverage is split so feature logic can be tested separately from browser-visible flows.
 
 ## CI/CD
 
-The repository uses GitHub Actions for:
+GitHub Actions provide:
 
-- install and dependency setup with pnpm
 - linting
-- framework and type checks
+- Svelte and TypeScript checks
 - unit tests
-- end-to-end tests
-- deployment to Cloudflare Workers on `main`
+- Playwright end-to-end tests
 
-## Design Goals
-
-This structure optimizes for:
-
-- one repository
-- one deployable application
-- one primary language across the stack
-- modular feature growth
-- easier onboarding
-- Cloudflare Workers compatibility
-- clear test boundaries
+Deployment is handled by Cloudflare Workers Builds, which calls the root upload script and uses the bindings configured for the `mentormatch` Worker.

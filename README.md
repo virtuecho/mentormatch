@@ -1,54 +1,64 @@
 # MentorMatch
 
-MentorMatch is a Cloudflare Workers-first full-stack workspace for matching mentees with mentors, publishing mentor availability, and managing bookings in a single deployable application.
+MentorMatch is a Cloudflare Workers-first full-stack mentoring platform. It serves the public site, authentication flows, mentor discovery, availability management, and booking workflows from a single SvelteKit application backed by modular workspace packages.
 
-This repository is organized as a modern JavaScript/TypeScript workspace:
-
-- `apps/web` is the only deployable application. It contains the SvelteKit frontend and the Worker-side HTTP entrypoints.
-- `packages/features/*` contains business modules such as auth, mentors, availability, bookings, and profile.
-- `packages/db` contains the database layer, migrations, and persistence helpers.
-- `packages/shared` contains shared contracts, types, schemas, and utilities.
-- `packages/ui` contains reusable design-system level UI components.
-
-The target deployment model is:
-
-- One Cloudflare Worker deployment for the full application
-- One external database, with Cloudflare D1 as the default target
-- Optional future database adapters if the project later moves to another provider
-
-## Why This Structure
-
-The previous MentorMatch codebase used separate frontend and backend projects. This workspace consolidates them into a single full-stack application while preserving clear module boundaries:
+## Overview
 
 - one repository
-- one primary deployment target
-- one language across frontend and backend: TypeScript
-- modular feature packages for future growth
-- testable boundaries for unit, integration, and end-to-end coverage
+- one deployable application: `apps/web`
+- one runtime target: Cloudflare Workers
+- one primary database binding: `DB` for Cloudflare D1
+- one language across the stack: TypeScript
 
-## Repository Layout
+The active application entrypoint is the SvelteKit Worker app in [apps/web](/Users/admin/MentorMatch/apps/web). Shared business logic, persistence, contracts, and UI primitives live in `packages/*`.
+
+## Workspace Layout
 
 ```text
 MentorMatch/
 ├── apps/
 │   └── web/                    # SvelteKit app deployed to Cloudflare Workers
 ├── packages/
-│   ├── config/                 # Shared toolchain config
-│   ├── db/                     # Database schema, migrations, repositories
-│   ├── features/               # Business feature modules
-│   │   ├── auth/
-│   │   ├── profile/
-│   │   ├── mentors/
-│   │   ├── availability/
-│   │   └── bookings/
-│   ├── shared/                 # Cross-cutting contracts, types, schemas, utils
-│   └── ui/                     # Reusable UI primitives and composed components
-├── tests/                      # Integration and end-to-end suites
-├── docs/                       # Architecture notes and ADRs
-├── .github/workflows/          # CI/CD automation
-├── pnpm-workspace.yaml         # Workspace boundaries
-└── turbo.json                  # Task orchestration
+│   ├── config/                 # Shared toolchain configuration
+│   ├── db/                     # D1 client, schema, migrations, persistence helpers
+│   ├── features/               # Auth, mentors, availability, bookings, profile
+│   ├── shared/                 # Contracts, schemas, types, utilities
+│   └── ui/                     # Reusable Svelte UI components
+├── tests/                      # Integration, fixtures, end-to-end test folders
+├── docs/                       # Supporting docs and ADR folders
+├── .github/workflows/          # CI/CD workflows
+├── pnpm-workspace.yaml
+├── turbo.json
+└── package.json
 ```
+
+## Frontend Entry Points
+
+Public pages:
+
+- `/`
+- `/login`
+- `/signup`
+
+Protected pages:
+
+- `/dashboard`
+- `/my-bookings`
+- `/mentor-bookings`
+- `/profile`
+- `/settings`
+- `/mentor-verification`
+
+Local frontend URL after starting the app:
+
+```text
+http://localhost:5173/
+```
+
+Deployed frontend URL:
+
+- the root `workers.dev` or custom domain attached to the `mentormatch` Worker
+- the homepage remains `/`
 
 ## Local Development
 
@@ -63,13 +73,19 @@ Install dependencies:
 pnpm install
 ```
 
-Start the local application:
+Start the app locally:
 
 ```bash
 pnpm dev
 ```
 
-## Common Scripts
+Run the Worker preview locally:
+
+```bash
+pnpm cf:preview
+```
+
+## Common Commands
 
 From the repository root:
 
@@ -78,37 +94,35 @@ pnpm dev
 pnpm lint
 pnpm check
 pnpm test:unit
+pnpm test:e2e
 pnpm test
 pnpm build
 pnpm cf:preview
-pnpm cf:deploy
+pnpm cf:upload
 ```
 
-## Testing Strategy
+## Testing
 
-The repository is designed for layered testing:
+The repository uses layered verification:
 
-- unit tests for feature logic and utilities
-- integration tests for route handlers, repositories, and module wiring
-- Playwright end-to-end tests for the app experience
+- unit tests for feature packages and app-level utilities
+- end-to-end tests for browser-visible flows
+- framework and type checks via `svelte-check` and TypeScript
 
-## CI/CD
+## Deployment
 
-GitHub Actions are configured for:
+Cloudflare deployment is centered on the Worker app in `apps/web`, and the active deployment path is Cloudflare Workers Builds.
 
-- linting
-- type and framework checks
-- unit tests
-- Playwright end-to-end tests
-- production deployment to Cloudflare Workers
+Important points:
 
-The deploy workflow expects these repository secrets:
+- the Worker name is `mentormatch`
+- the Worker build upload command is exposed at the repo root as `pnpm cf:upload`
+- `pnpm cf:upload` builds the SvelteKit Worker first, then uploads the version with Wrangler
+- the D1 binding name is `DB`
+- Cloudflare runtime bindings and secrets should be configured in Cloudflare, not GitHub Actions
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-Database bindings and other runtime secrets should be configured in Cloudflare.
+GitHub Actions is used for validation only. Deployment is handled by Cloudflare Workers Builds.
 
 ## Architecture
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the module breakdown, request flow, and deployment model.
+See [ARCHITECTURE.md](/Users/admin/MentorMatch/ARCHITECTURE.md) for the request flow, package responsibilities, and deployment model.

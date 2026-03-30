@@ -1,42 +1,54 @@
-# sv
+# MentorMatch Web
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+This package is the deployable SvelteKit application for MentorMatch.
 
-## Creating a project
+It is responsible for:
 
-If you're seeing this, you've probably already done this step. Congrats!
+- rendering the public and authenticated pages
+- exposing explicit API handlers under `src/routes/api/*`
+- wiring auth, cookies, and request-scoped Worker context
+- producing the Cloudflare Worker build consumed by Wrangler
 
-```sh
-# create a new project
-npx sv create my-app
+## Run From the Repository Root
+
+The workspace is managed from the repository root. Use these root commands:
+
+```bash
+pnpm dev
+pnpm build
+pnpm lint
+pnpm check
+pnpm test:unit
+pnpm test:e2e
+pnpm cf:preview
+pnpm cf:upload
 ```
 
-To recreate this project with the same configuration:
+## Local Frontend URLs
 
-```sh
-# recreate this project
-pnpm dlx sv@0.13.0 create --template minimal --types ts --add prettier eslint vitest="usages:unit" playwright sveltekit-adapter="adapter:cloudflare+cfTarget:workers" --install pnpm apps/web
-```
+Public pages:
 
-## Developing
+- `http://localhost:5173/`
+- `http://localhost:5173/login`
+- `http://localhost:5173/signup`
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Protected pages require an authenticated session and the Worker runtime bindings:
 
-```sh
-npm run dev
+- `/dashboard`
+- `/my-bookings`
+- `/mentor-bookings`
+- `/profile`
+- `/settings`
+- `/mentor-verification`
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+## Cloudflare
 
-## Building
+The package-level Worker config lives in [wrangler.jsonc](/Users/admin/MentorMatch/apps/web/wrangler.jsonc).
 
-To create a production version of your app:
+Important bindings:
 
-```sh
-npm run build
-```
+- `DB`
+- `ASSETS`
+- `AUTH_SECRET`
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+The current Worker name is `mentormatch`.
