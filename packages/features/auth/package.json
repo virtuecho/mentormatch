@@ -2,6 +2,14 @@
   "name": "@mentormatch/feature-auth",
   "private": true,
   "version": "0.1.0",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@mentormatch/db": "workspace:*",
+    "@mentormatch/shared": "workspace:*",
+    "bcryptjs": "^3.0.2",
+    "jose": "^6.1.0"
+  }
 }
-

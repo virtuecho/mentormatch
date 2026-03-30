@@ -2,6 +2,12 @@
   "name": "@mentormatch/feature-profile",
   "private": true,
   "version": "0.1.0",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@mentormatch/db": "workspace:*",
+    "@mentormatch/shared": "workspace:*"
+  }
 }
-

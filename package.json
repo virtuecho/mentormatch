@@ -16,7 +16,8 @@
     "cf:preview": "pnpm --filter @mentormatch/web cf:preview"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.13.5",
+    "drizzle-kit": "^0.31.10",
     "turbo": "^2.5.6"
   }
 }
-

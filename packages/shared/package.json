@@ -2,6 +2,11 @@
   "name": "@mentormatch/shared",
   "private": true,
   "version": "0.1.0",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^4.1.8"
+  }
 }
-

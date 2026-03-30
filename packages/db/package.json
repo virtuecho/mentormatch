@@ -2,6 +2,20 @@
   "name": "@mentormatch/db",
   "private": true,
   "version": "0.1.0",
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mentormatch/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.10",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.4.1",
+    "typescript": "^5.9.3"
+  }
 }
-

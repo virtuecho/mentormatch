@@ -1,70 +1,3 @@
-import { nowIso } from '@mentormatch/shared';
-
-export type SqlValue = string | number | null;
-
-export interface QueryResult {
-	changes: number;
-	lastRowId: number | null;
-}
-
-export interface DatabaseClient {
-	get<T>(sql: string, params?: SqlValue[]): Promise<T | null>;
-	all<T>(sql: string, params?: SqlValue[]): Promise<T[]>;
-	run(sql: string, params?: SqlValue[]): Promise<QueryResult>;
-	exec(sql: string): Promise<void>;
-}
-
-type D1Result<T = Record<string, unknown>> = {
-	results?: T[];
-	meta?: { changes?: number; last_row_id?: number };
-};
-
-type D1Prepared = {
-	bind: (...params: SqlValue[]) => D1Prepared;
-	first: <T>() => Promise<T | null>;
-	run: <T>() => Promise<D1Result<T>>;
-};
-
-type D1LikeDatabase = {
-	prepare: (sql: string) => D1Prepared;
-	exec?: (sql: string) => Promise<unknown>;
-};
-
-export function createD1Client(db: D1LikeDatabase): DatabaseClient {
-	return {
-		async get<T>(sql, params = []) {
-			return (await db.prepare(sql).bind(...params).first<T>()) ?? null;
-		},
-		async all<T>(sql, params = []) {
-			const result = await db.prepare(sql).bind(...params).run<T>();
-			return Array.isArray(result.results) ? result.results : [];
-		},
-		async run(sql, params = []) {
-			const result = await db.prepare(sql).bind(...params).run();
-			return {
-				changes: Number(result.meta?.changes ?? 0),
-				lastRowId: result.meta?.last_row_id != null ? Number(result.meta.last_row_id) : null
-			};
-		},
-		async exec(sql) {
-			if (typeof db.exec === 'function') {
-				await db.exec(sql);
-				return;
-			}
-
-			const statements = sql
-				.split(';')
-				.map((statement) => statement.trim())
-				.filter(Boolean);
-
-			for (const statement of statements) {
-				await db.prepare(statement).run();
-			}
-		}
-	};
-}
-
-export const initialSchemaSql = `
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
@@ -84,10 +17,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   location TEXT,
   profile_image_url TEXT,
   linkedin_url TEXT,
-  instagram_url TEXT,
-  facebook_url TEXT,
   website_url TEXT,
   phone TEXT,
+  social_media TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -173,27 +105,16 @@ CREATE TABLE IF NOT EXISTS bookings (
   FOREIGN KEY (mentor_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_bookings_mentee ON bookings(mentee_id, status);
 CREATE INDEX IF NOT EXISTS idx_bookings_mentor ON bookings(mentor_id, status);
 CREATE INDEX IF NOT EXISTS idx_slots_mentor ON availability_slots(mentor_id, is_booked, start_time);
-`;
-
-export async function applyInitialSchema(db: DatabaseClient): Promise<void> {
-	await db.exec(initialSchemaSql);
-}
-
-export async function insertDefaultMentorRequest(
-	db: DatabaseClient,
-	userId: number,
-	documentUrl: string,
-	note?: string
-): Promise<void> {
-	await db.run(
-		`
-      INSERT INTO mentor_requests (user_id, document_url, note, status, submitted_at)
-      VALUES (?, ?, ?, 'pending', ?)
-    `,
-		[userId, documentUrl, note ?? null, nowIso()]
-	);
-}
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, expires_at);
