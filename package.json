@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.17.1",
   "scripts": {
     "dev": "pnpm --filter @mentormatch/web dev",
-    "build": "turbo run build",
+    "build": "pnpm --filter @mentormatch/web exec vite build",
     "check": "turbo run check",
     "lint": "turbo run lint",
     "format": "turbo run format",

@@ -1,11 +1,12 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	import { page } from '$app/state';
+	import { AppFrame } from '@mentormatch/ui';
 
-	let { children } = $props();
+	import '$lib/styles/app.css';
+
+	let { data, children } = $props();
 </script>
 
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
-
-{@render children()}
+<AppFrame navItems={data.navItems} currentPath={page.url.pathname}>
+	{@render children()}
+</AppFrame>
