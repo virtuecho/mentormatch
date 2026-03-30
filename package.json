@@ -13,6 +13,7 @@
     "test:unit": "turbo run test:unit",
     "test:e2e": "pnpm --filter @mentormatch/web test:e2e",
     "cf:deploy": "pnpm --filter @mentormatch/web cf:deploy",
+    "cf:upload": "pnpm build && pnpm --filter @mentormatch/web exec wrangler versions upload",
     "cf:preview": "pnpm --filter @mentormatch/web cf:preview"
   },
   "devDependencies": {
