@@ -1,199 +1,46 @@
-import { nowIso } from '@mentormatch/shared';
-
-export type SqlValue = string | number | null;
+export type QueryParams = Array<string | number | null | undefined>;
 
 export interface QueryResult {
-	changes: number;
-	lastRowId: number | null;
+  changes: number;
+  lastRowId: number | null;
 }
 
 export interface DatabaseClient {
-	get<T>(sql: string, params?: SqlValue[]): Promise<T | null>;
-	all<T>(sql: string, params?: SqlValue[]): Promise<T[]>;
-	run(sql: string, params?: SqlValue[]): Promise<QueryResult>;
-	exec(sql: string): Promise<void>;
+  get<T>(sql: string, params?: QueryParams): Promise<T | null>;
+  all<T>(sql: string, params?: QueryParams): Promise<T[]>;
+  run(sql: string, params?: QueryParams): Promise<QueryResult>;
 }
-
-type D1Result<T = Record<string, unknown>> = {
-	results?: T[];
-	meta?: { changes?: number; last_row_id?: number };
-};
 
 type D1Prepared = {
-	bind: (...params: SqlValue[]) => D1Prepared;
-	first: <T>() => Promise<T | null>;
-	run: <T>() => Promise<D1Result<T>>;
+  bind: (...params: QueryParams) => D1Prepared;
+  first: <T>() => Promise<T | null>;
+  all: <T>() => Promise<{ results?: T[] }>;
+  run: () => Promise<{ meta?: { changes?: number; last_row_id?: number } }>;
 };
 
-type D1LikeDatabase = {
-	prepare: (sql: string) => D1Prepared;
-	exec?: (sql: string) => Promise<unknown>;
+type D1DatabaseLike = {
+  prepare: (sql: string) => D1Prepared;
 };
 
-export function createD1Client(db: D1LikeDatabase): DatabaseClient {
-	return {
-		async get<T>(sql, params = []) {
-			return (await db.prepare(sql).bind(...params).first<T>()) ?? null;
-		},
-		async all<T>(sql, params = []) {
-			const result = await db.prepare(sql).bind(...params).run<T>();
-			return Array.isArray(result.results) ? result.results : [];
-		},
-		async run(sql, params = []) {
-			const result = await db.prepare(sql).bind(...params).run();
-			return {
-				changes: Number(result.meta?.changes ?? 0),
-				lastRowId: result.meta?.last_row_id != null ? Number(result.meta.last_row_id) : null
-			};
-		},
-		async exec(sql) {
-			if (typeof db.exec === 'function') {
-				await db.exec(sql);
-				return;
-			}
-
-			const statements = sql
-				.split(';')
-				.map((statement) => statement.trim())
-				.filter(Boolean);
-
-			for (const statement of statements) {
-				await db.prepare(statement).run();
-			}
-		}
-	};
+export function createD1DatabaseClient(db: D1DatabaseLike): DatabaseClient {
+  return {
+    async get<T>(sql: string, params: QueryParams = []) {
+      const row = await db.prepare(sql).bind(...params).first<T>();
+      return row ?? null;
+    },
+    async all<T>(sql: string, params: QueryParams = []) {
+      const result = await db.prepare(sql).bind(...params).all<T>();
+      return Array.isArray(result.results) ? result.results : [];
+    },
+    async run(sql: string, params: QueryParams = []) {
+      const result = await db.prepare(sql).bind(...params).run();
+      return {
+        changes: Number(result.meta?.changes ?? 0),
+        lastRowId:
+          result.meta?.last_row_id == null ? null : Number(result.meta.last_row_id)
+      };
+    }
+  };
 }
 
-export const initialSchemaSql = `
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'mentee',
-  is_mentor_approved INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS profiles (
-  user_id INTEGER PRIMARY KEY,
-  full_name TEXT NOT NULL,
-  bio TEXT,
-  location TEXT,
-  profile_image_url TEXT,
-  linkedin_url TEXT,
-  instagram_url TEXT,
-  facebook_url TEXT,
-  website_url TEXT,
-  phone TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS educations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  university TEXT NOT NULL,
-  degree TEXT NOT NULL,
-  major TEXT NOT NULL,
-  start_year INTEGER NOT NULL,
-  end_year INTEGER,
-  status TEXT NOT NULL DEFAULT 'on_going',
-  logo_url TEXT,
-  description TEXT,
-  FOREIGN KEY (user_id) REFERENCES profiles(user_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS experiences (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  company TEXT NOT NULL,
-  position TEXT NOT NULL,
-  industry TEXT,
-  expertise_json TEXT NOT NULL DEFAULT '[]',
-  start_year INTEGER NOT NULL,
-  end_year INTEGER,
-  status TEXT NOT NULL DEFAULT 'on_going',
-  description TEXT,
-  FOREIGN KEY (user_id) REFERENCES profiles(user_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS mentor_requests (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  document_url TEXT NOT NULL,
-  note TEXT,
-  status TEXT NOT NULL DEFAULT 'pending',
-  submitted_at TEXT NOT NULL,
-  reviewed_at TEXT,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS mentor_skills (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  mentor_id INTEGER NOT NULL,
-  skill_name TEXT NOT NULL,
-  FOREIGN KEY (mentor_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS availability_slots (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  mentor_id INTEGER NOT NULL,
-  title TEXT,
-  start_time TEXT NOT NULL,
-  duration_mins INTEGER NOT NULL,
-  location_type TEXT NOT NULL DEFAULT 'in_person',
-  city TEXT NOT NULL,
-  address TEXT NOT NULL,
-  max_participants INTEGER NOT NULL DEFAULT 2,
-  note TEXT,
-  is_booked INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (mentor_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS bookings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  topic TEXT NOT NULL,
-  description TEXT,
-  availability_slot_id INTEGER NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  num_participants INTEGER NOT NULL DEFAULT 1,
-  note TEXT,
-  mentee_id INTEGER NOT NULL,
-  mentor_id INTEGER NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  FOREIGN KEY (availability_slot_id) REFERENCES availability_slots(id) ON DELETE CASCADE,
-  FOREIGN KEY (mentee_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (mentor_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-CREATE INDEX IF NOT EXISTS idx_bookings_mentee ON bookings(mentee_id, status);
-CREATE INDEX IF NOT EXISTS idx_bookings_mentor ON bookings(mentor_id, status);
-CREATE INDEX IF NOT EXISTS idx_slots_mentor ON availability_slots(mentor_id, is_booked, start_time);
-`;
-
-export async function applyInitialSchema(db: DatabaseClient): Promise<void> {
-	await db.exec(initialSchemaSql);
-}
-
-export async function insertDefaultMentorRequest(
-	db: DatabaseClient,
-	userId: number,
-	documentUrl: string,
-	note?: string
-): Promise<void> {
-	await db.run(
-		`
-      INSERT INTO mentor_requests (user_id, document_url, note, status, submitted_at)
-      VALUES (?, ?, ?, 'pending', ?)
-    `,
-		[userId, documentUrl, note ?? null, nowIso()]
-	);
-}
+export const createD1Client = createD1DatabaseClient;

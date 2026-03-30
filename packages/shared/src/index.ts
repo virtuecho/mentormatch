@@ -38,15 +38,71 @@ export interface EducationRecord {
 }
 
 export interface ExperienceRecord {
-	id: number;
-	company: string;
+  id: number;
+  company: string;
 	position: string;
 	industry: string | null;
 	expertise: string[];
 	startYear: number;
 	endYear: number | null;
 	status: RecordStatus;
-	description: string | null;
+  description: string | null;
+}
+
+export interface MentorCard {
+  id: number;
+  fullName: string;
+  profileImageUrl: string;
+  headline: string;
+  company: string;
+  location: string | null;
+  skills: string[];
+}
+
+export interface MentorProfile {
+  id: number;
+  fullName: string;
+  profileImageUrl: string;
+  bio: string | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  websiteUrl: string | null;
+  skills: string[];
+  educations: EducationRecord[];
+  experiences: ExperienceRecord[];
+}
+
+export interface AvailabilitySlotRecord {
+  id: number;
+  mentorId: number;
+  title: string | null;
+  startTime: string;
+  durationMins: number;
+  locationType: LocationType;
+  city: string;
+  address: string;
+  maxParticipants: number;
+  note: string | null;
+  isBooked: boolean;
+  isRequested?: boolean;
+}
+
+export interface BookingRecord {
+  id: number;
+  topic: string;
+  description: string | null;
+  note: string | null;
+  numParticipants: number;
+  status: BookingStatus;
+  createdAt: string;
+  updatedAt: string;
+  slot: AvailabilitySlotRecord | null;
+  counterpart: {
+    id: number;
+    email: string;
+    fullName: string;
+    profileImageUrl: string;
+  };
 }
 
 const nonEmptyString = z.string().trim().min(1);
@@ -149,6 +205,18 @@ export const bookingHistorySchema = z.object({
 export const mentorModeSchema = z.object({
 	role: z.enum(['mentee', 'mentor']).optional()
 });
+
+export class AppError extends Error {
+	status: number;
+	code: string;
+
+	constructor(status: number, code: string, message: string) {
+		super(message);
+		this.name = 'AppError';
+		this.status = status;
+		this.code = code;
+	}
+}
 
 export function nowIso(): string {
 	return new Date().toISOString();

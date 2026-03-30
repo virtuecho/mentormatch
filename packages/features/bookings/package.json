@@ -6,8 +6,18 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test:unit": "vitest run"
+  },
   "dependencies": {
     "@mentormatch/db": "workspace:*",
     "@mentormatch/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@mentormatch/feature-auth": "workspace:*",
+    "@mentormatch/feature-availability": "workspace:*",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
   }
 }

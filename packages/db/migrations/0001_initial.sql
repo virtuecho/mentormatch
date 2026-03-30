@@ -17,9 +17,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   location TEXT,
   profile_image_url TEXT,
   linkedin_url TEXT,
+  instagram_url TEXT,
+  facebook_url TEXT,
   website_url TEXT,
   phone TEXT,
-  social_media TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
