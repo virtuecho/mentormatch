@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { createBooking } from '@mentormatch/feature-bookings';
 import { getMentorProfile } from '@mentormatch/feature-mentors';
 import { AppError } from '@mentormatch/shared';
-import { handleApiError, requireDatabase, requireUser } from '$lib/server/http';
+import { handleApiError, requireDatabase, requireMember } from '$lib/server/http';
 
 function matchesAvailabilityFilter(
 	slot: {
@@ -35,7 +35,7 @@ function matchesAvailabilityFilter(
 }
 
 export async function load({ params, locals, url }) {
-	const user = requireUser(locals);
+	const user = requireMember(locals);
 	const mentor = await getMentorProfile(requireDatabase(locals), Number(params.id));
 	const filters = {
 		date: url.searchParams.get('date') ?? '',
@@ -49,19 +49,13 @@ export async function load({ params, locals, url }) {
 			availability: mentor.availability.filter((slot) => matchesAvailabilityFilter(slot, filters))
 		},
 		filters,
-		viewerRole: user.role
+		viewerCanBook: user.role !== 'admin'
 	};
 }
 
 export const actions = {
 	book: async ({ request, locals }) => {
-		const user = requireUser(locals);
-
-		if (user.role !== 'mentee') {
-			return fail(403, {
-				message: 'Only mentees can create booking requests'
-			});
-		}
+		const user = requireMember(locals);
 
 		const form = await request.formData();
 		const availabilitySlotId = Number(form.get('availabilitySlotId'));

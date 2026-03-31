@@ -66,32 +66,47 @@
 							<p>{new Date(slot.startTime).toLocaleString()}</p>
 							<p>{slot.city} · {slot.address}</p>
 							<p>{slot.durationMins} minutes · {slot.maxParticipants} participant(s)</p>
+							{#if slot.bookingMode === 'preset'}
+								<p><strong>Planned topic:</strong> {slot.presetTopic ?? slot.title ?? 'Session'}</p>
+								{#if slot.presetDescription}
+									<p>{slot.presetDescription}</p>
+								{/if}
+							{/if}
 
-							{#if data.viewerRole === 'mentee'}
+							{#if data.viewerCanBook}
 								<form method="POST" action="?/book" class="form-grid">
 									<input type="hidden" name="availabilitySlotId" value={slot.id} />
-									<div class="field">
-										<label for={`topic-${slot.id}`}>Topic</label>
-										<input
-											id={`topic-${slot.id}`}
-											name="topic"
-											type="text"
-											placeholder="What do you want to discuss?"
-											required
-										/>
-									</div>
-									<div class="field">
-										<label for={`description-${slot.id}`}>Description</label>
-										<textarea
-											id={`description-${slot.id}`}
-											name="description"
-											placeholder="Optional details or goals for this session"
-										></textarea>
-									</div>
+									{#if slot.bookingMode === 'preset'}
+										<p class="subtle field-note">
+											This slot already has a set agenda from the mentor, so you can request it
+											directly.
+										</p>
+									{:else}
+										<div class="field">
+											<label for={`topic-${slot.id}`}>Topic</label>
+											<input
+												id={`topic-${slot.id}`}
+												name="topic"
+												type="text"
+												placeholder="What do you want to discuss?"
+												required
+											/>
+										</div>
+										<div class="field">
+											<label for={`description-${slot.id}`}>Description</label>
+											<textarea
+												id={`description-${slot.id}`}
+												name="description"
+												placeholder="Optional details or goals for this session"
+											></textarea>
+										</div>
+									{/if}
 									{#if form?.message}
 										<p class:form-success={form?.success} class="form-error">{form.message}</p>
 									{/if}
-									<button class="button primary" type="submit">Request this slot</button>
+									<button class="button primary" type="submit">
+										{slot.bookingMode === 'preset' ? 'Request this session' : 'Request this slot'}
+									</button>
 								</form>
 							{/if}
 						</article>

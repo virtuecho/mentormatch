@@ -6,6 +6,46 @@ import {
   ensureAvatar,
 } from "@mentormatch/shared";
 
+function getEndTime(startTime: string, durationMins: number) {
+  return new Date(new Date(startTime).getTime() + durationMins * 60_000).getTime();
+}
+
+function overlaps(
+  leftStart: string,
+  leftDurationMins: number,
+  rightStart: string,
+  rightDurationMins: number,
+) {
+  const leftStartMs = new Date(leftStart).getTime();
+  const rightStartMs = new Date(rightStart).getTime();
+
+  return (
+    leftStartMs < getEndTime(rightStart, rightDurationMins) &&
+    rightStartMs < getEndTime(leftStart, leftDurationMins)
+  );
+}
+
+async function syncSlotBookedState(
+  db: DatabaseClient,
+  slotId: number,
+  updatedAt: string,
+) {
+  const accepted = await db.get<{ id: number }>(
+    `
+      SELECT id
+      FROM bookings
+      WHERE availability_slot_id = ? AND status = 'accepted'
+      LIMIT 1
+    `,
+    [slotId],
+  );
+
+  await db.run(
+    "UPDATE availability_slots SET is_booked = ?, updated_at = ? WHERE id = ?",
+    [accepted ? 1 : 0, updatedAt, slotId],
+  );
+}
+
 export async function createBooking(
   db: DatabaseClient,
   menteeId: number,
@@ -17,9 +57,23 @@ export async function createBooking(
     mentor_id: number;
     is_booked: number;
     max_participants: number;
+    booking_mode: "open" | "preset";
+    preset_topic: string | null;
+    preset_description: string | null;
+    start_time: string;
+    duration_mins: number;
   }>(
     `
-			SELECT id, mentor_id, is_booked, max_participants
+			SELECT
+        id,
+        mentor_id,
+        is_booked,
+        max_participants,
+        booking_mode,
+        preset_topic,
+        preset_description,
+        start_time,
+        duration_mins
 			FROM availability_slots
 			WHERE id = ?
 			LIMIT 1
@@ -35,11 +89,85 @@ export async function createBooking(
     );
   }
 
+  if (slot.mentor_id === menteeId) {
+    throw new AppError(
+      400,
+      "self_booking_not_allowed",
+      "You cannot book your own availability slot.",
+    );
+  }
+
   if (payload.numParticipants > slot.max_participants) {
     throw new AppError(
       400,
       "participants_exceeded",
       `numParticipants cannot exceed maxParticipants (${slot.max_participants})`,
+    );
+  }
+
+  const existingSlotRequest = await db.get<{ id: number }>(
+    `
+      SELECT id
+      FROM bookings
+      WHERE availability_slot_id = ?
+        AND mentee_id = ?
+        AND status IN ('pending', 'accepted')
+      LIMIT 1
+    `,
+    [payload.availabilitySlotId, menteeId],
+  );
+
+  if (existingSlotRequest) {
+    throw new AppError(
+      409,
+      "duplicate_booking_request",
+      "You already have an active request for this slot.",
+    );
+  }
+
+  const activeBookings = await db.all<{
+    availability_slot_id: number;
+    start_time: string;
+    duration_mins: number;
+  }>(
+    `
+      SELECT b.availability_slot_id, s.start_time, s.duration_mins
+      FROM bookings b
+      JOIN availability_slots s ON s.id = b.availability_slot_id
+      WHERE b.mentee_id = ? AND b.status IN ('pending', 'accepted')
+    `,
+    [menteeId],
+  );
+
+  if (
+    activeBookings.some(
+      (booking) =>
+        booking.availability_slot_id !== slot.id &&
+        overlaps(
+          slot.start_time,
+          slot.duration_mins,
+          booking.start_time,
+          booking.duration_mins,
+        ),
+    )
+  ) {
+    throw new AppError(
+      409,
+      "booking_time_conflict",
+      "You already have another active session request at that time.",
+    );
+  }
+
+  const topic =
+    slot.booking_mode === "preset"
+      ? slot.preset_topic?.trim() ?? ""
+      : payload.topic?.trim() ?? "";
+
+  if (!topic) {
+    throw new AppError(
+      400,
+      "booking_topic_required",
+      "Please add a topic before sending the booking request.",
     );
   }
 
@@ -53,8 +181,10 @@ export async function createBooking(
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
 		`,
     [
-      payload.topic,
-      payload.description ?? null,
+      topic,
+      slot.booking_mode === "preset"
+        ? slot.preset_description ?? null
+        : payload.description ?? null,
       payload.availabilitySlotId,
       now,
       now,
@@ -77,9 +207,19 @@ export async function cancelBooking(
     id: number;
     mentee_id: number;
     mentor_id: number;
-  }>("SELECT id, mentee_id, mentor_id FROM bookings WHERE id = ? LIMIT 1", [
+    availability_slot_id: number;
+    status: string;
+  }>(
+    `
+      SELECT id, mentee_id, mentor_id, availability_slot_id, status
+      FROM bookings
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [
     bookingId,
-  ]);
+    ],
+  );
 
   if (!booking) {
     throw new AppError(404, "booking_not_found", "Booking not found");
@@ -93,14 +233,20 @@ export async function cancelBooking(
     );
   }
 
+  if (!["pending", "accepted"].includes(booking.status)) {
+    throw new AppError(
+      400,
+      "booking_not_cancellable",
+      "Only pending or accepted bookings can be cancelled.",
+    );
+  }
+
+  const now = new Date().toISOString();
   await db.run(
     "UPDATE bookings SET status = 'cancelled', updated_at = ? WHERE id = ?",
-    [new Date().toISOString(), bookingId],
+    [now, bookingId],
   );
-  await db.run(
-    "UPDATE availability_slots SET is_booked = 0, updated_at = ? WHERE id = (SELECT availability_slot_id FROM bookings WHERE id = ?)",
-    [new Date().toISOString(), bookingId],
-  );
+  await syncSlotBookedState(db, booking.availability_slot_id, now);
 
   return { ok: true };
 }
@@ -143,6 +289,29 @@ export async function respondToBooking(
   }
 
   const now = new Date().toISOString();
+
+  if (payload.response === "accepted") {
+    const acceptedBooking = await db.get<{ id: number }>(
+      `
+        SELECT id
+        FROM bookings
+        WHERE availability_slot_id = ?
+          AND status = 'accepted'
+          AND id != ?
+        LIMIT 1
+      `,
+      [booking.availability_slot_id, bookingId],
+    );
+
+    if (acceptedBooking) {
+      throw new AppError(
+        409,
+        "slot_already_booked",
+        "This slot already has an accepted booking.",
+      );
+    }
+  }
+
   await db.run("UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?", [
     payload.response,
     now,
@@ -153,6 +322,16 @@ export async function respondToBooking(
     await db.run(
       "UPDATE availability_slots SET is_booked = 1, updated_at = ? WHERE id = ?",
       [now, booking.availability_slot_id],
+    );
+    await db.run(
+      `
+        UPDATE bookings
+        SET status = 'cancelled', updated_at = ?
+        WHERE availability_slot_id = ?
+          AND status = 'pending'
+          AND id != ?
+      `,
+      [now, booking.availability_slot_id, bookingId],
     );
   }
 
@@ -186,6 +365,9 @@ export async function listBookings(
 				s.city,
 				s.address,
 				s.max_participants,
+        s.booking_mode,
+        s.preset_topic,
+        s.preset_description,
 				p.user_id AS counterpart_id,
 				p.full_name AS counterpart_name,
 				p.profile_image_url AS counterpart_image,
@@ -218,6 +400,9 @@ export async function listBookings(
       city: row.city,
       address: row.address,
       maxParticipants: row.max_participants,
+      bookingMode: row.booking_mode,
+      presetTopic: row.preset_topic,
+      presetDescription: row.preset_description,
     },
     counterpart: {
       id: row.counterpart_id,

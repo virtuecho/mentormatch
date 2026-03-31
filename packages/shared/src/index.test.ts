@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  availabilityCreateSchema,
   isValidTimeZone,
   mentorRequestSchema,
   normalizeHttpUrl,
@@ -98,5 +99,23 @@ describe("shared helpers", () => {
     expect(
       serializeZonedDateTime("2026-01-15T09:30", "Mars/Olympus_Mons"),
     ).toBeNull();
+  });
+
+  it("requires preset agenda slots to include a preset topic", () => {
+    expect(() =>
+      availabilityCreateSchema.parse({
+        title: "Career clinic",
+        startTime: "2026-04-01T01:30:00.000Z",
+        durationMins: 60,
+        locationType: "online",
+        city: "Shanghai",
+        address: "https://meet.google.com/demo",
+        maxParticipants: 1,
+        note: null,
+        bookingMode: "preset",
+        presetTopic: null,
+        presetDescription: "We review one blocker together.",
+      }),
+    ).toThrowError(/preset sessions/i);
   });
 });

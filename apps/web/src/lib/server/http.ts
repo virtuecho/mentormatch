@@ -39,8 +39,18 @@ export function requireRole(locals: App.Locals, role: UserRole) {
 	return user;
 }
 
+export function requireMember(locals: App.Locals) {
+	const user = requireUser(locals);
+
+	if (user.role === 'admin') {
+		throw new AppError(403, 'forbidden', 'Admin accounts cannot use member booking flows');
+	}
+
+	return user;
+}
+
 export function requireApprovedMentor(locals: App.Locals) {
-	const user = requireRole(locals, 'mentor');
+	const user = requireMember(locals);
 
 	if (!user.isMentorApproved) {
 		throw new AppError(403, 'mentor_approval_required', 'Mentor approval required');

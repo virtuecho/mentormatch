@@ -13,12 +13,14 @@ export const BOOKING_STATUSES = [
   "cancelled",
   "completed",
 ] as const;
+export const SLOT_BOOKING_MODES = ["open", "preset"] as const;
 export const LOCATION_TYPES = ["online", "in_person"] as const;
 export const RECORD_STATUSES = ["completed", "on_going"] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+export type SlotBookingMode = (typeof SLOT_BOOKING_MODES)[number];
 export type LocationType = (typeof LOCATION_TYPES)[number];
 export type RecordStatus = (typeof RECORD_STATUSES)[number];
 
@@ -91,6 +93,9 @@ export interface AvailabilitySlotRecord {
   note: string | null;
   isBooked: boolean;
   isRequested?: boolean;
+  bookingMode: SlotBookingMode;
+  presetTopic: string | null;
+  presetDescription: string | null;
 }
 
 export interface BookingRecord {
@@ -407,11 +412,22 @@ export const availabilityCreateSchema = z.object({
   address: z.string().trim().min(1).max(255),
   maxParticipants: z.coerce.number().int().min(1).max(20).default(2),
   note: optionalNullableString,
+  bookingMode: z.enum(SLOT_BOOKING_MODES).default("open"),
+  presetTopic: z.string().trim().max(255).nullable().optional(),
+  presetDescription: optionalNullableString,
+}).superRefine((value, ctx) => {
+  if (value.bookingMode === "preset" && !value.presetTopic) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["presetTopic"],
+      message: "Please add a topic for preset sessions",
+    });
+  }
 });
 
 export const bookingCreateSchema = z.object({
   availabilitySlotId: z.coerce.number().int().positive(),
-  topic: z.string().trim().min(1).max(255),
+  topic: z.string().trim().max(255).optional(),
   description: optionalNullableString,
   note: optionalNullableString,
   numParticipants: z.coerce.number().int().min(1).max(20).default(1),

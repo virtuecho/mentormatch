@@ -7,6 +7,7 @@
 		{ value: 'all', label: 'All' },
 		{ value: 'pending', label: 'Pending' },
 		{ value: 'accepted', label: 'Accepted' },
+		{ value: 'cancelled', label: 'Cancelled' },
 		{ value: 'rejected', label: 'Rejected' },
 		{ value: 'completed', label: 'Completed' }
 	] as const;
@@ -29,12 +30,17 @@
 	let startTimeLocal = $state('');
 	let browserTimeZone = $state('your local time zone');
 	let selectedTimeZone = $state('UTC');
+	let timezoneOffsetMinutes = $state(0);
+	let bookingMode = $state<'open' | 'preset'>('open');
+	let repeatMode = $state<'once' | 'weekly'>('once');
+	let repeatCount = $state(4);
 	let timeZoneOptions = $state([...supportedTimeZones]);
 
 	onMount(() => {
 		const resolvedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 		browserTimeZone = resolvedTimeZone;
 		selectedTimeZone = resolvedTimeZone;
+		timezoneOffsetMinutes = new Date().getTimezoneOffset();
 
 		if (!timeZoneOptions.includes(resolvedTimeZone)) {
 			timeZoneOptions = [resolvedTimeZone, ...timeZoneOptions];
@@ -64,9 +70,40 @@
 	<div class="split">
 		<Panel title="Share a new time">
 			<form class="form-grid" method="POST" action="?/createSlot">
+				<input type="hidden" name="timezoneOffsetMinutes" value={String(timezoneOffsetMinutes)} />
 				<div class="field">
 					<label for="title">Session title</label>
 					<input id="title" name="title" type="text" placeholder="Career planning session" />
+				</div>
+				<div class="split">
+					<div class="field">
+						<label for="bookingMode">Session format</label>
+						<select id="bookingMode" name="bookingMode" bind:value={bookingMode}>
+							<option value="open">Mentee chooses the topic</option>
+							<option value="preset">Mentor sets the agenda</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="repeatWeekly">Repeats</label>
+						<select id="repeatWeekly" name="repeatWeekly" bind:value={repeatMode}>
+							<option value="once">One time only</option>
+							<option value="weekly">Repeat every week</option>
+						</select>
+					</div>
+					{#if repeatMode === 'weekly'}
+						<div class="field">
+							<label for="repeatCount">How many weeks</label>
+							<input
+								id="repeatCount"
+								name="repeatCount"
+								type="number"
+								min="2"
+								max="26"
+								bind:value={repeatCount}
+								required
+							/>
+						</div>
+					{/if}
 				</div>
 				<div class="split">
 					<div class="field">
@@ -110,6 +147,26 @@
 						/>
 					</div>
 				</div>
+				{#if bookingMode === 'preset'}
+					<div class="field">
+						<label for="presetTopic">Preset topic</label>
+						<input
+							id="presetTopic"
+							name="presetTopic"
+							type="text"
+							placeholder="Mock interview debrief"
+							required
+						/>
+					</div>
+					<div class="field">
+						<label for="presetDescription">Preset description</label>
+						<textarea
+							id="presetDescription"
+							name="presetDescription"
+							placeholder="Tell mentees what this session already covers."
+						></textarea>
+					</div>
+				{/if}
 				<div class="split">
 					<div class="field">
 						<label for="locationType">Location type</label>
@@ -150,6 +207,9 @@
 					<label for="note">Note</label>
 					<textarea id="note" name="note" placeholder="Optional prep instructions"></textarea>
 				</div>
+				{#if form?.section === 'createSlot' && form?.message}
+					<p class:form-success={form?.success} class="form-error">{form.message}</p>
+				{/if}
 				<button class="button primary" type="submit">Publish time</button>
 			</form>
 		</Panel>
@@ -169,6 +229,11 @@
 									<p>{new Date(slot.startTime).toLocaleString()}</p>
 									<p>{slot.city} · {slot.address}</p>
 									<p>{slot.durationMins} minutes · {slot.maxParticipants} participant(s)</p>
+									<p>
+										{slot.bookingMode === 'preset'
+											? `Fixed agenda: ${slot.presetTopic ?? 'Mentorship session'}`
+											: 'Open agenda: mentees can request their own topic'}
+									</p>
 								</div>
 								<span class={`status ${slot.isBooked ? 'accepted' : 'pending'}`}>
 									{slot.isBooked ? 'Booked' : 'Available'}
@@ -181,6 +246,9 @@
 								<input type="hidden" name="slotId" value={slot.id} />
 								<button class="button secondary" type="submit">Delete slot</button>
 							</form>
+							{#if form?.section === 'deleteSlot' && form?.slotId === slot.id && form?.message}
+								<p class="form-error">{form.message}</p>
+							{/if}
 						</article>
 					{/each}
 				</div>
@@ -258,7 +326,7 @@
 		</section>
 	</Panel>
 
-	{#if form?.message}
+	{#if (form?.section === 'respond' || form?.section === 'cancel') && form?.message}
 		<p class:form-success={form?.success} class="form-error">{form.message}</p>
 	{/if}
 </div>
