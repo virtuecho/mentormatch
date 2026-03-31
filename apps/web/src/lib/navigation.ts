@@ -11,28 +11,28 @@ const publicNavigation = [
 	{ href: '/signup', label: 'Sign Up' }
 ] as const satisfies readonly NavItem[];
 
-const menteeNavigation = [
+const memberNavigationBase = [
 	{ href: '/', label: 'Home' },
 	{ href: '/dashboard', label: 'Find a Mentor' },
 	{ href: '/my-bookings', label: 'My Sessions' },
 	{ href: '/profile', label: 'Profile' },
-	{ href: '/settings', label: 'Settings' },
+	{ href: '/settings', label: 'Settings' }
+] as const satisfies readonly NavItem[];
+
+const menteeNavigation = [
+	...memberNavigationBase,
 	{ href: '/mentor-verification', label: 'Mentor Status' }
 ] as const satisfies readonly NavItem[];
 
 const mentorNavigation = [
-	{ href: '/', label: 'Home' },
+	...memberNavigationBase,
 	{ href: '/mentor-bookings', label: 'Mentor Sessions' },
-	{ href: '/profile', label: 'Profile' },
-	{ href: '/settings', label: 'Settings' },
 	{ href: '/mentor-verification', label: 'Mentor Status' }
 ] as const satisfies readonly NavItem[];
 
 const pendingMentorNavigation = [
-	{ href: '/', label: 'Home' },
-	{ href: '/mentor-verification', label: 'Mentor Application' },
-	{ href: '/profile', label: 'Profile' },
-	{ href: '/settings', label: 'Settings' }
+	...memberNavigationBase,
+	{ href: '/mentor-verification', label: 'Mentor Application' }
 ] as const satisfies readonly NavItem[];
 
 const adminNavigation = [
@@ -69,7 +69,7 @@ export function getDefaultAuthenticatedPath(
 		return '/mentor-verification';
 	}
 
-	return user?.role === 'mentor' ? '/mentor-bookings' : '/dashboard';
+	return user?.role === 'mentor' && user.isMentorApproved ? '/mentor-bookings' : '/dashboard';
 }
 
 export function getNavigation(context: NavigationContext): readonly NavItem[] {

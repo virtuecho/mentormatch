@@ -59,24 +59,16 @@
 				<div class="form-grid">
 					<p>
 						Apply to mentor from this page, then wait for a MentorMatch admin to review your
-						application. Once approved, you can switch into mentor mode anytime.
+						application. Once approved, mentor tools are added to your account and you can still
+						book other mentors as a mentee.
 					</p>
 
-					{#if form?.section === 'role' && form?.message}
-						<p class:form-success={form?.success} class="form-error">{form.message}</p>
-					{/if}
-
 					{#if data.profile.isMentorApproved}
-						<form class="form-grid" method="POST" action="?/toggleRole">
-							<input
-								type="hidden"
-								name="role"
-								value={data.profile.role === 'mentor' ? 'mentee' : 'mentor'}
-							/>
-							<button class="button primary" type="submit">
-								Switch to {data.profile.role === 'mentor' ? 'mentee' : 'mentor'} mode
-							</button>
-						</form>
+						<p>Your mentor approval stays active. Existing accepted sessions remain in place.</p>
+						<div class="cta-row">
+							<a class="button primary" href={resolve('/mentor-bookings')}>Open mentor sessions</a>
+							<a class="button secondary" href={resolve('/dashboard')}>Book other mentors</a>
+						</div>
 					{:else}
 						<a class="button primary" href={resolve('/mentor-verification')}>
 							{getMentorActionLabel(data.profile.profile.mentorRequest)}
@@ -85,11 +77,11 @@
 				</div>
 			</Panel>
 		{:else}
-			<Panel title="Review queue">
+			<Panel title="Admin mode">
 				<div class="form-grid">
 					<p>
 						MentorMatch admins approve mentor applications from the review queue before someone can
-						start mentoring.
+						start mentoring. You can enter the same admin view from Home or directly here.
 					</p>
 					<a class="button primary" href={resolve('/admin/review')}>Open review applications</a>
 				</div>

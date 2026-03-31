@@ -152,7 +152,7 @@ select {
 
 .action-button,
 .filter-chip {
-	min-width: 8.5rem;
+	min-width: 7rem;
 }
 
 .search-actions {
@@ -160,7 +160,8 @@ select {
 }
 
 .search-actions .button {
-	flex: 1 1 10rem;
+	flex: 0 0 auto;
+	min-width: 6.75rem;
 }
 
 .hero {

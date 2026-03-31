@@ -48,24 +48,18 @@ class ProfileTestDatabase implements DatabaseClient {
   private mentorRequests: MentorRequestRow[] = [];
 
   async get<T>(sql: string, params: QueryParams = []): Promise<T | null> {
-    if (sql.includes("SELECT r.id, r.user_id, r.status, u.role")) {
+    if (sql.includes("SELECT r.id, r.user_id, r.status")) {
       const requestId = Number(params[0]);
       const request = this.mentorRequests.find((item) => item.id === requestId);
       if (!request) {
         return null;
       }
 
-      const user = this.users.find((item) => item.id === request.user_id);
-      return (
-        user
-          ? {
-              id: request.id,
-              user_id: request.user_id,
-              status: request.status,
-              role: user.role,
-            }
-          : null
-      ) as T | null;
+      return {
+        id: request.id,
+        user_id: request.user_id,
+        status: request.status,
+      } as T;
     }
 
     if (
@@ -172,13 +166,14 @@ class ProfileTestDatabase implements DatabaseClient {
       return { changes: 1, lastRowId: null };
     }
 
-    if (sql.includes("UPDATE users SET is_mentor_approved = ?")) {
-      const [approved, _updatedAt, userId] = params;
+    if (sql.includes("UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ?")) {
+      const [role, approved, _updatedAt, userId] = params;
       const user = this.users.find((item) => item.id === Number(userId));
       if (!user) {
         return { changes: 0, lastRowId: null };
       }
 
+      user.role = role as UserRow["role"];
       user.is_mentor_approved = Number(approved);
       return { changes: 1, lastRowId: null };
     }
@@ -232,7 +227,7 @@ describe("feature-profile", () => {
     ]);
   });
 
-  it("approves mentor applications and allows switching into mentor mode", async () => {
+  it("approves mentor applications into mentor mode immediately", async () => {
     const db = new ProfileTestDatabase();
 
     await submitMentorRequest(db, 1, {
@@ -241,7 +236,7 @@ describe("feature-profile", () => {
     });
     await reviewMentorRequest(db, 1, { status: "approved" });
 
-    await expect(toggleRole(db, 1)).resolves.toEqual({ role: "mentor" });
+    await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({ role: "mentor" });
   });
 
   it("updates an existing pending mentor application instead of duplicating it", async () => {

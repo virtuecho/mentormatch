@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { PageHeader, Panel } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data, form } = $props();
 	const bookingFilters = [
@@ -298,9 +300,24 @@
 								<h3>{booking.topic}</h3>
 								<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
 								<p>{booking.slot.city} · {booking.slot.address}</p>
-								<p>Mentee: {booking.counterpart.fullName}</p>
+								<div class="mentor-card-header">
+									<ProfileAvatar
+										name={booking.counterpart.fullName}
+										src={booking.counterpart.profileImageUrl}
+									/>
+									<div class="stack compact">
+										<p>Mentee: {booking.counterpart.fullName}</p>
+										<p>{booking.counterpart.email}</p>
+									</div>
+								</div>
 							</div>
 							<div class="cta-row">
+								<a
+									class="button secondary"
+									href={resolve('/members/[id]', { id: String(booking.counterpart.id) })}
+								>
+									View mentee
+								</a>
 								{#if booking.status === 'pending'}
 									<form method="POST" action="?/respond">
 										<input type="hidden" name="bookingId" value={booking.id} />

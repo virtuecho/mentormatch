@@ -18,7 +18,9 @@ describe('mainNavigation', () => {
 
 	it('switches booking navigation by role', () => {
 		expect(getNavigation('mentee').some((item) => item.href === '/my-bookings')).toBe(true);
+		expect(getNavigation('mentee').some((item) => item.href === '/dashboard')).toBe(true);
 		expect(getNavigation('mentor').some((item) => item.href === '/mentor-bookings')).toBe(true);
+		expect(getNavigation('mentor').some((item) => item.href === '/my-bookings')).toBe(true);
 		expect(getNavigation('admin').some((item) => item.href === '/admin/review')).toBe(true);
 		expect(getNavigation(null).some((item) => item.href === '/login')).toBe(true);
 	});
@@ -29,6 +31,11 @@ describe('mainNavigation', () => {
 				(item) => item.href === '/mentor-bookings'
 			)
 		).toBe(false);
+		expect(
+			getNavigation({ role: 'mentor', isMentorApproved: false }).some(
+				(item) => item.href === '/dashboard'
+			)
+		).toBe(true);
 		expect(getDefaultAuthenticatedPath({ role: 'mentor', isMentorApproved: false })).toBe(
 			'/mentor-verification'
 		);

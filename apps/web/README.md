@@ -38,6 +38,7 @@ Protected pages require an authenticated session and the Worker runtime bindings
 - `/dashboard`
 - `/my-bookings`
 - `/mentor-bookings`
+- `/members/[id]`
 - `/profile`
 - `/settings`
 - `/mentor-verification`
@@ -46,12 +47,16 @@ Protected pages require an authenticated session and the Worker runtime bindings
 Product behavior to keep in mind:
 
 - all new accounts start as mentees
-- approved users can switch to mentor mode later
+- approved users gain mentor tools and still keep mentee booking access
 - mentor applications are reviewed by MentorMatch admins in `/admin/review`
+- admin accounts also get a direct homepage entry into the review queue
 - settings is the place for password changes and account deletion
 - the logged-in navigation includes a logout action
 - profile and application links accept bare domains and are normalized to `https://...`
 - mentors create availability in their local time zone by default, but they can switch to another time zone before publishing
+- mentors can publish single or weekly recurring slots
+- a slot can either keep a preset mentor agenda or let the mentee provide the topic
+- member profile editing now includes education and experience record management
 - the app stores availability in UTC so mentees see the right local time on their side
 
 ## Cloudflare

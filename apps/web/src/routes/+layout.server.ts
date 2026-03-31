@@ -2,7 +2,6 @@ import { redirect } from '@sveltejs/kit';
 import { getDefaultAuthenticatedPath, getNavigation } from '$lib/navigation';
 
 const publicPaths = new Set(['/', '/login', '/signup']);
-const pendingMentorPaths = new Set(['/', '/profile', '/settings', '/mentor-verification']);
 
 export function load({ locals, url }) {
 	const path = url.pathname;
@@ -24,16 +23,8 @@ export function load({ locals, url }) {
 		throw redirect(303, getDefaultAuthenticatedPath(user));
 	}
 
-	if (user.role === 'mentor' && !user.isMentorApproved && !pendingMentorPaths.has(path)) {
+	if (user.role !== 'admin' && path === '/mentor-bookings' && !user.isMentorApproved) {
 		throw redirect(303, '/mentor-verification');
-	}
-
-	if (user.role === 'mentor' && path === '/dashboard') {
-		throw redirect(303, '/mentor-bookings');
-	}
-
-	if (user.role === 'mentor' && path === '/my-bookings') {
-		throw redirect(303, '/mentor-bookings');
 	}
 
 	if (

@@ -21,9 +21,12 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - new accounts are created as mentees first
 - users who want to mentor submit an application on `/mentor-verification`
 - admin accounts review mentor applications on `/admin/review`
-- approved users can switch into mentor mode after review
+- approved users gain mentor tools while still keeping mentee booking flows
 - profile and application links are normalized to `https://...` before validation
 - availability defaults to the mentor's current browser time zone, but the mentor can switch to another IANA time zone before publishing
+- mentors can create either a one-off slot or a weekly recurring series
+- slots support two booking modes: preset mentor agenda or open topic chosen by the mentee
+- booking rules prevent duplicate same-slot requests, overlapping active mentee requests, and multiple accepted bookings on a single slot
 - availability is converted to UTC on submit and rendered back in each viewer's locale
 
 ## Repository Structure
@@ -178,7 +181,7 @@ The current workspace uses:
 - `pnpm build`
 
 Coverage is split so feature logic can be tested separately from browser-visible flows.
-The current test suite covers signup, login, logout, settings, mentor application review, profile link normalization, availability time conversion, and the mentor/mentee routing rules that connect them.
+The current test suite covers signup, login, logout, settings, mentor application review, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
 
 ## CI/CD
 

@@ -355,11 +355,10 @@ export async function listMentorRequests(db: DatabaseClient) {
 
 export async function reviewMentorRequest(db: DatabaseClient, requestId: number, input: unknown) {
 	const payload = mentorRequestReviewSchema.parse(input);
-	const request = await db.get<{ id: number; user_id: number; status: RequestStatus; role: UserRole }>(
+	const request = await db.get<{ id: number; user_id: number; status: RequestStatus }>(
 		`
-			SELECT r.id, r.user_id, r.status, u.role
+			SELECT r.id, r.user_id, r.status
 			FROM mentor_requests r
-			JOIN users u ON u.id = r.user_id
 			WHERE r.id = ?
 			LIMIT 1
 		`,
@@ -384,15 +383,12 @@ export async function reviewMentorRequest(db: DatabaseClient, requestId: number,
 		now,
 		requestId
 	]);
-	await db.run('UPDATE users SET is_mentor_approved = ?, updated_at = ? WHERE id = ?', [
+	await db.run('UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?', [
+		payload.status === 'approved' ? 'mentor' : 'mentee',
 		payload.status === 'approved' ? 1 : 0,
 		now,
 		request.user_id
 	]);
-
-	if (payload.status === 'rejected' && request.role === 'mentor') {
-		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', ['mentee', now, request.user_id]);
-	}
 
 	return {
 		status: payload.status

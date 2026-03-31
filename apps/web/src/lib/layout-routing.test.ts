@@ -54,6 +54,28 @@ describe('root layout auth routing', () => {
 		});
 	});
 
+	it('keeps approved mentors inside member flows like dashboard', () => {
+		expect(
+			load({
+				locals: {
+					db: null,
+					authSecret: null,
+					user: {
+						id: 3,
+						email: 'approved@example.com',
+						role: 'mentor',
+						isMentorApproved: true,
+						fullName: 'Approved Mentor',
+						profileImageUrl: ''
+					}
+				},
+				url: createUrl('/dashboard')
+			} as never)
+		).toMatchObject({
+			currentPath: '/dashboard'
+		});
+	});
+
 	it('redirects admins away from member-only flows', () => {
 		expect(
 			captureRedirect(() =>

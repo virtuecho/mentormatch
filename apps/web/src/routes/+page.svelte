@@ -32,6 +32,17 @@
 					<a class="button secondary" href={resolve('/login')}>Log in</a>
 				{/if}
 			</div>
+			{#if data.user?.role === 'admin'}
+				<p class="subtle">
+					Admin mode: open the mentor approval queue from
+					<a href={resolve('/admin/review')}>Review applications</a>.
+				</p>
+			{:else if data.user?.isMentorApproved}
+				<p class="subtle">
+					Your mentor tools are active. You can publish sessions and still book other mentors from
+					your dashboard.
+				</p>
+			{/if}
 		</div>
 
 		<Panel title="Community snapshot">

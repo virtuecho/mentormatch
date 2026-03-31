@@ -1,6 +1,6 @@
 # MentorMatch
 
-MentorMatch is a mentoring platform where people can create an account, find mentors, book sessions, manage their profile, and apply to become mentors. New accounts start as mentees, and approved users can switch into mentor mode later. The product is delivered through a single SvelteKit application on Cloudflare Workers, with shared business logic split into workspace packages.
+MentorMatch is a mentoring platform where people can create an account, find mentors, book sessions, manage their profile, and apply to become mentors. New accounts start as mentees, and mentor approval adds mentor tools without taking away the ability to keep booking other mentors. The product is delivered through a single SvelteKit application on Cloudflare Workers, with shared business logic split into workspace packages.
 
 ## Overview
 
@@ -45,6 +45,7 @@ Protected pages:
 - `/dashboard`
 - `/my-bookings`
 - `/mentor-bookings`
+- `/members/[id]`
 - `/profile`
 - `/settings`
 - `/mentor-verification`
@@ -56,9 +57,13 @@ Protected pages:
 - account settings now include password changes and account deletion
 - mentor applications are submitted from `/mentor-verification`
 - mentor applications are reviewed by admin accounts in `/admin/review`
-- mentor approval happens before a user can switch into mentor mode
+- approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
+- mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
 - mentor availability defaults to the creator's current local time zone, but mentors can switch it before publishing
+- mentors can publish one-off or weekly recurring slots
+- slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
+- booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
 - mentor availability is stored as UTC so it renders correctly per viewer locale
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
@@ -121,7 +126,7 @@ The repository uses layered verification:
 - unit tests for feature packages and app-level utilities
 - end-to-end tests for browser-visible flows
 - framework and type checks via `svelte-check` and TypeScript
-- CI runs these checks so account creation, login, logout, settings, mentor review, profile link normalization, and availability time handling stay covered
+- CI runs these checks so account creation, login, logout, settings, mentor review, profile editing, slot creation, booking safeguards, and availability time handling stay covered
 
 ## Deployment
 

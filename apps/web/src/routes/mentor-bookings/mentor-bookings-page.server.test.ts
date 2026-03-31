@@ -27,10 +27,15 @@ class MentorBookingsTestDatabase implements DatabaseClient {
 	slots: SlotRecord[] = [];
 
 	async get<T>(sql: string, params: QueryParams = []): Promise<T | null> {
-		if (sql.includes('FROM availability_slots') && sql.includes('mentor_id = ? AND start_time = ?')) {
+		if (
+			sql.includes('FROM availability_slots') &&
+			sql.includes('mentor_id = ? AND start_time = ?')
+		) {
 			const mentorId = Number(params[0]);
 			const startTime = String(params[1]);
-			const slot = this.slots.find((item) => item.mentorId === mentorId && item.startTime === startTime);
+			const slot = this.slots.find(
+				(item) => item.mentorId === mentorId && item.startTime === startTime
+			);
 
 			return slot ? ({ id: slot.id } as T) : null;
 		}
