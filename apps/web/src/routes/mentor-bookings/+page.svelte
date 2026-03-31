@@ -12,9 +12,9 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="Mentor view"
-		title="Review mentee booking requests"
-		description="The mentor workflow stays in the same application and can later be wired to protected Worker route handlers."
+		eyebrow="Mentor sessions"
+		title="Manage requests and share new availability"
+		description="Review incoming requests and open new times when you are ready to meet."
 	/>
 
 	<div class="cta-row">
@@ -36,7 +36,7 @@
 	</div>
 
 	<div class="split">
-		<Panel title="Create new meeting">
+		<Panel title="Open a new time">
 			<form class="form-grid" method="POST" action="?/createSlot">
 				<div class="field">
 					<label for="title">Session title</label>
@@ -104,7 +104,7 @@
 			</form>
 		</Panel>
 
-		<Panel title="Published availability">
+		<Panel title="Your available times">
 			{#if data.slots.length === 0}
 				<div class="detail-card">
 					<p>No slots published yet.</p>

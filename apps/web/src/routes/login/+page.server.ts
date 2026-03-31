@@ -1,15 +1,16 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { loginUser } from '@mentormatch/feature-auth';
-import { AppError } from '@mentormatch/shared';
+import { AppError, type SessionUser } from '@mentormatch/shared';
+import { getDefaultAuthenticatedPath } from '$lib/navigation';
 import { requireAuthSecret, requireDatabase, setSessionCookie } from '$lib/server/http';
 
-function getRedirectTarget(url: URL, role: 'mentee' | 'mentor' | 'admin') {
+function getRedirectTarget(url: URL, user: Pick<SessionUser, 'role' | 'isMentorApproved'>) {
 	const requested = url.searchParams.get('redirect');
 	if (requested && requested.startsWith('/')) {
 		return requested;
 	}
 
-	return role === 'mentor' ? '/mentor-bookings' : '/dashboard';
+	return getDefaultAuthenticatedPath(user);
 }
 
 export const actions = {
@@ -27,7 +28,7 @@ export const actions = {
 			);
 
 			setSessionCookie(cookies, url, session.token);
-			target = getRedirectTarget(url, session.user.role);
+			target = getRedirectTarget(url, session.user);
 		} catch (error) {
 			if (error instanceof AppError) {
 				return fail(error.status, {

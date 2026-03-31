@@ -6,19 +6,27 @@
     label: string;
   };
 
+  type FrameUser = {
+    fullName: string;
+    email: string;
+    role: string;
+  };
+
   interface Props {
     title?: string;
     subtitle?: string;
     navItems?: readonly NavItem[];
     currentPath?: string;
+    user?: FrameUser | null;
     children?: Snippet;
   }
 
   let {
     title = 'MentorMatch',
-    subtitle = 'Cloudflare Workers-first mentorship platform',
+    subtitle = 'Find mentors, book time, and keep your next steps moving.',
     navItems = [],
     currentPath = '/',
+    user = null,
     children
   }: Props = $props();
 </script>
@@ -40,6 +48,19 @@
         </a>
       {/each}
     </nav>
+
+    {#if user}
+      <div class="account-card">
+        <p class="account-label">Signed in as</p>
+        <strong>{user.fullName}</strong>
+        <p>{user.email}</p>
+        <span class="account-role">{user.role}</span>
+
+        <form method="POST" action="/logout">
+          <button class="logout-button" type="submit">Log out</button>
+        </form>
+      </div>
+    {/if}
   </aside>
 
   <main class="content">
@@ -118,6 +139,55 @@
     background: rgba(37, 99, 235, 0.09);
     color: #1d4ed8;
     transform: translateX(2px);
+  }
+
+  .account-card {
+    margin-top: 2rem;
+    padding: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    background: rgba(248, 250, 252, 0.9);
+  }
+
+  .account-label,
+  .account-card p {
+    margin: 0;
+    color: #475569;
+    font-size: 0.9rem;
+  }
+
+  .account-card strong {
+    display: block;
+    margin-top: 0.3rem;
+    color: #0f172a;
+  }
+
+  .account-role {
+    display: inline-flex;
+    margin-top: 0.8rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.1);
+    color: #0f766e;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: capitalize;
+  }
+
+  .logout-button {
+    margin-top: 1rem;
+    width: 100%;
+    border: none;
+    border-radius: 0.9rem;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(135deg, #0f766e, #2563eb);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .logout-button:hover {
+    opacity: 0.94;
   }
 
   .content {

@@ -56,6 +56,25 @@ export class AuthTestDatabase implements DatabaseClient {
 			} as T;
 		}
 
+		if (sql.includes('SELECT role, is_mentor_approved FROM users')) {
+			const id = Number(params[0]);
+			const user = this.users.find((item) => item.id === id);
+			return (
+				user
+					? {
+							role: user.role,
+							is_mentor_approved: user.is_mentor_approved
+						}
+					: null
+			) as T | null;
+		}
+
+		if (sql.includes('SELECT id, password_hash')) {
+			const id = Number(params[0]);
+			const user = this.users.find((item) => item.id === id);
+			return (user ? { id: user.id, password_hash: user.password_hash } : null) as T | null;
+		}
+
 		throw new Error(`Unexpected get query: ${sql}`);
 	}
 
@@ -86,6 +105,46 @@ export class AuthTestDatabase implements DatabaseClient {
 				profile_image_url: null
 			});
 
+			return { changes: 1, lastRowId: null };
+		}
+
+		if (sql.includes('UPDATE users SET password_hash = ?')) {
+			const [passwordHash, , userId] = params;
+			const user = this.users.find((item) => item.id === Number(userId));
+			if (!user) {
+				return { changes: 0, lastRowId: null };
+			}
+
+			user.password_hash = String(passwordHash);
+			return { changes: 1, lastRowId: null };
+		}
+
+		if (sql.includes('UPDATE users SET role = ?')) {
+			const [role, , userId] = params;
+			const user = this.users.find((item) => item.id === Number(userId));
+			if (!user) {
+				return { changes: 0, lastRowId: null };
+			}
+
+			user.role = role as UserRole;
+			return { changes: 1, lastRowId: null };
+		}
+
+		if (sql.includes('UPDATE users SET is_mentor_approved = ?')) {
+			const [approved, , userId] = params;
+			const user = this.users.find((item) => item.id === Number(userId));
+			if (!user) {
+				return { changes: 0, lastRowId: null };
+			}
+
+			user.is_mentor_approved = Number(approved);
+			return { changes: 1, lastRowId: null };
+		}
+
+		if (sql.includes('DELETE FROM users WHERE id = ?')) {
+			const userId = Number(params[0]);
+			this.users = this.users.filter((item) => item.id !== userId);
+			this.profiles = this.profiles.filter((item) => item.user_id !== userId);
 			return { changes: 1, lastRowId: null };
 		}
 

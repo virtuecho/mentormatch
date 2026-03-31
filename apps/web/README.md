@@ -8,6 +8,7 @@ It is responsible for:
 - exposing explicit API handlers under `src/routes/api/*`
 - wiring auth, cookies, and request-scoped Worker context
 - producing the Cloudflare Worker build consumed by Wrangler
+- presenting the user-facing account experience, including logout, password changes, account deletion, and mentor application review handoff
 
 ## Run From the Repository Root
 
@@ -40,6 +41,15 @@ Protected pages require an authenticated session and the Worker runtime bindings
 - `/profile`
 - `/settings`
 - `/mentor-verification`
+- `/admin/review` for admin review
+
+Product behavior to keep in mind:
+
+- all new accounts start as mentees
+- approved users can switch to mentor mode later
+- mentor applications are reviewed by MentorMatch admins in `/admin/review`
+- settings is the place for password changes and account deletion
+- the logged-in navigation includes a logout action
 
 ## Cloudflare
 

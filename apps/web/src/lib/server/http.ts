@@ -38,6 +38,16 @@ export function requireRole(locals: App.Locals, role: UserRole) {
 	return user;
 }
 
+export function requireApprovedMentor(locals: App.Locals) {
+	const user = requireRole(locals, 'mentor');
+
+	if (!user.isMentorApproved) {
+		throw new AppError(403, 'mentor_approval_required', 'Mentor approval required');
+	}
+
+	return user;
+}
+
 function getSessionCookieOptions(url: URL) {
 	return {
 		path: '/',

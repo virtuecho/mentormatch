@@ -17,6 +17,7 @@ export async function load({ locals }) {
 		]);
 
 		return {
+			user: locals.user ?? null,
 			stats: [
 				{ label: 'Mentors', value: String(mentorCountRow?.count ?? 0), tone: 'teal' as const },
 				{ label: 'Sessions', value: String(bookingCountRow?.count ?? 0), tone: 'blue' as const },
@@ -34,6 +35,7 @@ export async function load({ locals }) {
 
 function getFallbackHomepageData() {
 	return {
+		user: null,
 		stats: [
 			{ label: 'Mentors', value: '0', tone: 'teal' as const },
 			{ label: 'Sessions', value: '0', tone: 'blue' as const },

@@ -118,4 +118,64 @@ describe('login page action', () => {
 		expect(result.data.message).toBe('AUTH_SECRET is not configured');
 		expect(cookieJar.writes).toHaveLength(0);
 	});
+
+	it('sends admin users to the review queue by default', async () => {
+		const db = new AuthTestDatabase();
+		const registration = await registerUser(db, {
+			fullName: 'Admin User',
+			email: 'admin@example.com',
+			password: 'password123',
+			role: 'mentee'
+		});
+		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', [
+			'admin',
+			new Date().toISOString(),
+			registration.user.id
+		]);
+
+		await expect(
+			actions.default({
+				request: createLoginRequest({
+					email: 'admin@example.com',
+					password: 'password123'
+				}),
+				locals: createLocals(db),
+				cookies: createCookies().cookies,
+				url: new URL('http://localhost:5173/login')
+			} as unknown as LoginActionEvent)
+		).rejects.toMatchObject({
+			status: 303,
+			location: '/admin/review'
+		});
+	});
+
+	it('sends unapproved mentor accounts to the mentor application page by default', async () => {
+		const db = new AuthTestDatabase();
+		const registration = await registerUser(db, {
+			fullName: 'Pending Mentor',
+			email: 'mentor@example.com',
+			password: 'password123',
+			role: 'mentor'
+		});
+		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', [
+			'mentor',
+			new Date().toISOString(),
+			registration.user.id
+		]);
+
+		await expect(
+			actions.default({
+				request: createLoginRequest({
+					email: 'mentor@example.com',
+					password: 'password123'
+				}),
+				locals: createLocals(db),
+				cookies: createCookies().cookies,
+				url: new URL('http://localhost:5173/login')
+			} as unknown as LoginActionEvent)
+		).rejects.toMatchObject({
+			status: 303,
+			location: '/mentor-verification'
+		});
+	});
 });

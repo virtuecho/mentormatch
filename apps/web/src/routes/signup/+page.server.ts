@@ -10,15 +10,13 @@ export const actions = {
 		const email = String(form.get('email') ?? '').trim();
 		const password = String(form.get('password') ?? '');
 		const confirmPassword = String(form.get('confirmPassword') ?? '');
-		const role = String(form.get('role') ?? 'mentee');
 		const agreeToTerms = form.get('agreeToTerms') === 'on';
 
 		if (password !== confirmPassword) {
 			return fail(400, {
 				fullName,
 				email,
-				role,
-				message: 'Passwords do not match'
+				message: 'Passwords do not match.'
 			});
 		}
 
@@ -26,8 +24,7 @@ export const actions = {
 			return fail(400, {
 				fullName,
 				email,
-				role,
-				message: 'You must agree to the terms before signing up'
+				message: 'You must agree to the terms before creating your account.'
 			});
 		}
 
@@ -35,15 +32,13 @@ export const actions = {
 			await registerUser(requireDatabase(locals), {
 				fullName,
 				email,
-				password,
-				role
+				password
 			});
 		} catch (error) {
 			if (error instanceof AppError) {
 				return fail(error.status, {
 					fullName,
 					email,
-					role,
 					message: error.message
 				});
 			}
@@ -52,7 +47,6 @@ export const actions = {
 			return fail(500, {
 				fullName,
 				email,
-				role,
 				message: 'Unable to create your account right now'
 			});
 		}

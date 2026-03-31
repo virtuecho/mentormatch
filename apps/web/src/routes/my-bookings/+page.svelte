@@ -13,9 +13,9 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="Mentee view"
+		eyebrow="My sessions"
 		title="Track your upcoming mentorship sessions"
-		description="Bookings remain visible from one shell, with room for Worker-powered actions and incremental server-side updates."
+		description="See upcoming sessions, pending requests, and recent updates in one place."
 	/>
 
 	<div class="cta-row">

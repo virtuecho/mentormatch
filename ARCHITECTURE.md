@@ -14,6 +14,15 @@ Browser
 
 Only `apps/web` is deployed. Everything under `packages/*` is bundled into that Worker as internal dependencies.
 
+## Core Product Flows
+
+- guests can browse the homepage, sign up, and log in
+- signed-in users can search mentors, manage bookings, edit their profile, log out, change their password, and delete their account
+- new accounts are created as mentees first
+- users who want to mentor submit an application on `/mentor-verification`
+- admin accounts review mentor applications on `/admin/review`
+- approved users can switch into mentor mode after review
+
 ## Repository Structure
 
 ```text
@@ -166,6 +175,7 @@ The current workspace uses:
 - `pnpm build`
 
 Coverage is split so feature logic can be tested separately from browser-visible flows.
+The current test suite covers signup, login, logout, settings, mentor application review, and the mentor/mentee routing rules that connect them.
 
 ## CI/CD
 

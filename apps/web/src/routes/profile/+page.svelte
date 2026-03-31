@@ -8,11 +8,11 @@
 		eyebrow="Profile"
 		title={data.profile.profile.fullName}
 		description={data.profile.profile.bio ??
-			'Keep your mentor profile current in the same deployed app.'}
+			'Keep your profile up to date so people know how you can help.'}
 	/>
 
 	<div class="split">
-		<Panel title="Profile snapshot">
+		<Panel title="Profile at a glance">
 			<div class="stack">
 				<p><strong>Email:</strong> {data.profile.email}</p>
 				<p><strong>Role:</strong> {data.profile.role}</p>
@@ -22,7 +22,7 @@
 			</div>
 		</Panel>
 
-		<Panel title="Edit basics">
+		<Panel title="Edit profile">
 			<form class="form-grid" method="POST" action="?/save">
 				<input
 					type="hidden"

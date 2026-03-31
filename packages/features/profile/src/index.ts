@@ -4,8 +4,10 @@ import {
 	ensureAvatar,
 	mentorModeSchema,
 	mentorRequestSchema,
+	mentorRequestReviewSchema,
 	parseJsonArray,
 	profileUpdateSchema,
+	type RequestStatus,
 	type SessionUser,
 	type UserRole
 } from '@mentormatch/shared';
@@ -24,6 +26,20 @@ type ProfileRow = {
 	facebook_url: string | null;
 	website_url: string | null;
 	phone: string | null;
+};
+
+type MentorRequestListRow = {
+	id: number;
+	status: RequestStatus;
+	document_url: string;
+	note: string | null;
+	submitted_at: string;
+	reviewed_at: string | null;
+	user_id: number;
+	email: string;
+	role: UserRole;
+	full_name: string;
+	profile_image_url: string | null;
 };
 
 function mapSessionUser(row: ProfileRow): SessionUser {
@@ -237,15 +253,150 @@ export async function updateProfile(db: DatabaseClient, userId: number, input: u
 
 export async function submitMentorRequest(db: DatabaseClient, userId: number, input: unknown) {
 	const payload = mentorRequestSchema.parse(input);
-	await db.run(
-		`
-			INSERT INTO mentor_requests (user_id, document_url, note, status, submitted_at)
-			VALUES (?, ?, ?, 'pending', ?)
-		`,
-		[userId, payload.documentUrl, payload.note ?? null, new Date().toISOString()]
+	const user = await db.get<{ role: UserRole; is_mentor_approved: number }>(
+		'SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1',
+		[userId]
 	);
 
+	if (!user) {
+		throw new AppError(404, 'user_not_found', 'User not found');
+	}
+
+	if (user.role === 'admin') {
+		throw new AppError(403, 'admin_review_only', 'Admin accounts do not use mentor applications');
+	}
+
+	if (user.is_mentor_approved) {
+		throw new AppError(409, 'mentor_already_approved', 'Your mentor account is already approved');
+	}
+
+	const currentRequest = await db.get<{ id: number; status: RequestStatus }>(
+		`
+			SELECT id, status
+			FROM mentor_requests
+			WHERE user_id = ?
+			ORDER BY submitted_at DESC
+			LIMIT 1
+		`,
+		[userId]
+	);
+	const now = new Date().toISOString();
+
+	if (currentRequest?.status === 'pending') {
+		await db.run(
+			`
+				UPDATE mentor_requests
+				SET document_url = ?, note = ?, status = 'pending', submitted_at = ?, reviewed_at = NULL
+				WHERE id = ?
+			`,
+			[payload.documentUrl, payload.note ?? null, now, currentRequest.id]
+		);
+	} else {
+		await db.run(
+			`
+				INSERT INTO mentor_requests (user_id, document_url, note, status, submitted_at)
+				VALUES (?, ?, ?, 'pending', ?)
+			`,
+			[userId, payload.documentUrl, payload.note ?? null, now]
+		);
+	}
+
+	if (user.role !== 'mentee') {
+		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', ['mentee', now, userId]);
+	}
+
 	return { ok: true };
+}
+
+export async function listMentorRequests(db: DatabaseClient) {
+	const requests = await db.all<MentorRequestListRow>(
+		`
+			SELECT
+				r.id,
+				r.status,
+				r.document_url,
+				r.note,
+				r.submitted_at,
+				r.reviewed_at,
+				u.id AS user_id,
+				u.email,
+				u.role,
+				p.full_name,
+				p.profile_image_url
+			FROM mentor_requests r
+			JOIN users u ON u.id = r.user_id
+			JOIN profiles p ON p.user_id = u.id
+			ORDER BY
+				CASE r.status
+					WHEN 'pending' THEN 0
+					WHEN 'approved' THEN 1
+					ELSE 2
+				END,
+				r.submitted_at DESC
+		`
+	);
+
+	return requests.map((request) => ({
+		id: request.id,
+		status: request.status,
+		documentUrl: request.document_url,
+		note: request.note,
+		submittedAt: request.submitted_at,
+		reviewedAt: request.reviewed_at,
+		user: {
+			id: request.user_id,
+			email: request.email,
+			role: request.role,
+			fullName: request.full_name,
+			profileImageUrl: ensureAvatar(request.profile_image_url)
+		}
+	}));
+}
+
+export async function reviewMentorRequest(db: DatabaseClient, requestId: number, input: unknown) {
+	const payload = mentorRequestReviewSchema.parse(input);
+	const request = await db.get<{ id: number; user_id: number; status: RequestStatus; role: UserRole }>(
+		`
+			SELECT r.id, r.user_id, r.status, u.role
+			FROM mentor_requests r
+			JOIN users u ON u.id = r.user_id
+			WHERE r.id = ?
+			LIMIT 1
+		`,
+		[requestId]
+	);
+
+	if (!request) {
+		throw new AppError(404, 'mentor_request_not_found', 'Verification request not found');
+	}
+
+	if (request.status !== 'pending') {
+		throw new AppError(
+			409,
+			'mentor_request_already_reviewed',
+			'This verification request has already been reviewed'
+		);
+	}
+
+	const now = new Date().toISOString();
+	await db.run('UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE id = ?', [
+		payload.status,
+		now,
+		requestId
+	]);
+	await db.run('UPDATE users SET is_mentor_approved = ?, updated_at = ? WHERE id = ?', [
+		payload.status === 'approved' ? 1 : 0,
+		now,
+		request.user_id
+	]);
+
+	if (payload.status === 'rejected' && request.role === 'mentor') {
+		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', ['mentee', now, request.user_id]);
+	}
+
+	return {
+		status: payload.status
+	};
 }
 
 export async function toggleRole(db: DatabaseClient, userId: number, input: unknown = {}) {
@@ -257,6 +408,10 @@ export async function toggleRole(db: DatabaseClient, userId: number, input: unkn
 
 	if (!current) {
 		throw new AppError(404, 'user_not_found', 'User not found');
+	}
+
+	if (current.role === 'admin') {
+		throw new AppError(403, 'admin_role_locked', 'Admin accounts cannot switch mentoring modes');
 	}
 
 	const nextRole = payload.role ?? (current.role === 'mentor' ? 'mentee' : 'mentor');

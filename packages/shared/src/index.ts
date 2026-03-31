@@ -144,6 +144,15 @@ export const loginSchema = z.object({
 	password: z.string().min(1).max(128)
 });
 
+export const changePasswordSchema = z.object({
+	currentPassword: z.string().min(1).max(128),
+	newPassword: z.string().min(8).max(128)
+});
+
+export const deleteAccountSchema = z.object({
+	password: z.string().min(1).max(128)
+});
+
 export const profileUpdateSchema = z.object({
 	fullName: z.string().trim().min(1).max(255),
 	bio: optionalNullableString,
@@ -162,6 +171,10 @@ export const profileUpdateSchema = z.object({
 export const mentorRequestSchema = z.object({
 	documentUrl: z.url(),
 	note: optionalNullableString
+});
+
+export const mentorRequestReviewSchema = z.object({
+	status: z.enum(['approved', 'rejected'])
 });
 
 export const mentorSearchSchema = z.object({

@@ -1,6 +1,6 @@
 # MentorMatch
 
-MentorMatch is a Cloudflare Workers-first full-stack mentoring platform. It serves the public site, authentication flows, mentor discovery, availability management, and booking workflows from a single SvelteKit application backed by modular workspace packages.
+MentorMatch is a mentoring platform where people can create an account, find mentors, book sessions, manage their profile, and apply to become mentors. New accounts start as mentees, and approved users can switch into mentor mode later. The product is delivered through a single SvelteKit application on Cloudflare Workers, with shared business logic split into workspace packages.
 
 ## Overview
 
@@ -48,6 +48,16 @@ Protected pages:
 - `/profile`
 - `/settings`
 - `/mentor-verification`
+- `/admin/review` for admin users reviewing mentor applications
+
+## Account And Approval Flows
+
+- every signed-in user can log out from the main navigation
+- account settings now include password changes and account deletion
+- mentor applications are submitted from `/mentor-verification`
+- mentor applications are reviewed by admin accounts in `/admin/review`
+- mentor approval happens before a user can switch into mentor mode
+- the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
 Local frontend URL after starting the app:
 
@@ -108,6 +118,7 @@ The repository uses layered verification:
 - unit tests for feature packages and app-level utilities
 - end-to-end tests for browser-visible flows
 - framework and type checks via `svelte-check` and TypeScript
+- CI runs these checks so account creation, login, logout, settings, and mentor review flows stay covered
 
 ## Deployment
 

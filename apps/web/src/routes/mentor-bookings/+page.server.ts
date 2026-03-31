@@ -6,7 +6,7 @@ import {
 } from '@mentormatch/feature-availability';
 import { cancelBooking, listBookings, respondToBooking } from '@mentormatch/feature-bookings';
 import { AppError } from '@mentormatch/shared';
-import { handleApiError, requireDatabase, requireRole } from '$lib/server/http';
+import { handleApiError, requireApprovedMentor, requireDatabase } from '$lib/server/http';
 
 type AvailabilitySlotRow = {
 	id: number;
@@ -22,7 +22,7 @@ type AvailabilitySlotRow = {
 };
 
 export async function load({ locals }) {
-	const user = requireRole(locals, 'mentor');
+	const user = requireApprovedMentor(locals);
 	const db = requireDatabase(locals);
 	const availability = (await getMyAvailability(db, user.id)) as AvailabilitySlotRow[];
 
@@ -45,7 +45,7 @@ export async function load({ locals }) {
 
 export const actions = {
 	respond: async ({ request, locals }) => {
-		const user = requireRole(locals, 'mentor');
+		const user = requireApprovedMentor(locals);
 		const form = await request.formData();
 		const bookingId = Number(form.get('bookingId'));
 		const response = String(form.get('response') ?? '');
@@ -73,7 +73,7 @@ export const actions = {
 		}
 	},
 	cancel: async ({ request, locals }) => {
-		const user = requireRole(locals, 'mentor');
+		const user = requireApprovedMentor(locals);
 		const form = await request.formData();
 		const bookingId = Number(form.get('bookingId'));
 
@@ -97,7 +97,7 @@ export const actions = {
 		}
 	},
 	createSlot: async ({ request, locals }) => {
-		const user = requireRole(locals, 'mentor');
+		const user = requireApprovedMentor(locals);
 		const form = await request.formData();
 
 		try {
@@ -130,7 +130,7 @@ export const actions = {
 		}
 	},
 	deleteSlot: async ({ request, locals }) => {
-		const user = requireRole(locals, 'mentor');
+		const user = requireApprovedMentor(locals);
 		const form = await request.formData();
 		const slotId = Number(form.get('slotId'));
 

@@ -7,9 +7,9 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="Dashboard"
-		title="Browse mentors with a tighter, modular front-end shell"
-		description="The dashboard keeps the mentor discovery workflow intact while shifting the data layer behind shared Worker-first modules."
+		eyebrow="Find a mentor"
+		title="Find the right mentor for your next step"
+		description="Search by topic, skill, or location and book time when you are ready."
 	/>
 
 	<Panel title="Search mentors">
@@ -78,7 +78,7 @@
 			<Panel>
 				<div class="detail-card">
 					<h3>No mentors found yet</h3>
-					<p>As soon as approved mentors exist in the D1 database, they will appear here.</p>
+					<p>Try a broader search or check back soon as more mentors join.</p>
 				</div>
 			</Panel>
 		{:else}
@@ -92,14 +92,14 @@
 							</div>
 							<span class="pill">{mentor.location ?? 'Remote'}</span>
 						</div>
-						<p>{mentor.expertise.join(', ') || 'Mentorship profile ready for review.'}</p>
+						<p>{mentor.expertise.join(', ') || 'Available to help with your growth goals.'}</p>
 						<TagList tags={mentor.mentorSkills} />
 						<div class="cta-row">
 							<form method="GET" action={resolve('/mentor/[id]', { id: String(mentor.id) })}>
 								<input type="hidden" name="city" value={data.filters.city} />
 								<input type="hidden" name="date" value={data.filters.date} />
 								<input type="hidden" name="time" value={data.filters.time} />
-								<button class="button secondary" type="submit">Review mentor</button>
+								<button class="button secondary" type="submit">View profile</button>
 							</form>
 							<form method="GET" action={resolve('/mentor/[id]', { id: String(mentor.id) })}>
 								<input type="hidden" name="city" value={data.filters.city} />

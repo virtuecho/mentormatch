@@ -2,13 +2,47 @@
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	let { data, form } = $props();
+
+	function getMentorStatusLabel(profile: (typeof data)['profile']) {
+		if (profile.role === 'admin') {
+			return 'Not applicable';
+		}
+
+		if (profile.isMentorApproved) {
+			return 'Approved';
+		}
+
+		if (profile.profile.mentorRequest?.status === 'pending') {
+			return 'Under review';
+		}
+
+		if (profile.profile.mentorRequest?.status === 'rejected') {
+			return 'Needs updates';
+		}
+
+		return 'Not submitted';
+	}
+
+	function getMentorActionLabel(
+		mentorRequest: (typeof data)['profile']['profile']['mentorRequest']
+	) {
+		if (mentorRequest?.status === 'rejected') {
+			return 'Update mentor application';
+		}
+
+		if (mentorRequest) {
+			return 'View mentor application';
+		}
+
+		return 'Apply to mentor';
+	}
 </script>
 
 <div class="page">
 	<PageHeader
 		eyebrow="Settings"
-		title="Account and mentor mode"
-		description="Settings now live inside the same full-stack app, with role switching and verification state backed by Worker-side actions."
+		title="Account settings"
+		description="Manage your account, password, mentor status, and personal preferences."
 	/>
 
 	<div class="split">
@@ -16,49 +50,111 @@
 			<div class="stack">
 				<p><strong>Email:</strong> {data.profile.email}</p>
 				<p><strong>Current role:</strong> <span class="pill">{data.profile.role}</span></p>
-				<p>
-					<strong>Mentor approval:</strong>
-					{data.profile.isMentorApproved ? 'Approved' : 'Not approved yet'}
-				</p>
+				<p><strong>Mentor status:</strong> {getMentorStatusLabel(data.profile)}</p>
 			</div>
 		</Panel>
 
-		<Panel title="Mentor mode">
-			<form class="form-grid" method="POST" action="?/toggleRole">
-				<input
-					type="hidden"
-					name="role"
-					value={data.profile.role === 'mentor' ? 'mentee' : 'mentor'}
-				/>
-				<p>
-					Switch between mentee and mentor mode. If mentor approval has not been granted yet, the
-					server will reject the switch.
-				</p>
+		{#if data.profile.role !== 'admin'}
+			<Panel title="Mentor status">
+				<div class="form-grid">
+					<p>
+						Apply to mentor from this page, then wait for a MentorMatch team member to review your
+						application. Once approved, you can switch into mentor mode anytime.
+					</p>
 
-				{#if form?.message}
+					{#if form?.section === 'role' && form?.message}
+						<p class:form-success={form?.success} class="form-error">{form.message}</p>
+					{/if}
+
+					{#if data.profile.isMentorApproved}
+						<form class="form-grid" method="POST" action="?/toggleRole">
+							<input
+								type="hidden"
+								name="role"
+								value={data.profile.role === 'mentor' ? 'mentee' : 'mentor'}
+							/>
+							<button class="button primary" type="submit">
+								Switch to {data.profile.role === 'mentor' ? 'mentee' : 'mentor'} mode
+							</button>
+						</form>
+					{:else}
+						<a class="button primary" href={resolve('/mentor-verification')}>
+							{getMentorActionLabel(data.profile.profile.mentorRequest)}
+						</a>
+					{/if}
+				</div>
+			</Panel>
+		{/if}
+	</div>
+
+	<div class="split">
+		<Panel title="Change password">
+			<form class="form-grid" method="POST" action="?/changePassword">
+				<div class="field">
+					<label for="currentPassword">Current password</label>
+					<input
+						id="currentPassword"
+						name="currentPassword"
+						type="password"
+						autocomplete="current-password"
+						required
+					/>
+				</div>
+				<div class="split">
+					<div class="field">
+						<label for="newPassword">New password</label>
+						<input
+							id="newPassword"
+							name="newPassword"
+							type="password"
+							autocomplete="new-password"
+							required
+						/>
+					</div>
+					<div class="field">
+						<label for="confirmPassword">Confirm new password</label>
+						<input
+							id="confirmPassword"
+							name="confirmPassword"
+							type="password"
+							autocomplete="new-password"
+							required
+						/>
+					</div>
+				</div>
+
+				{#if form?.section === 'password' && form?.message}
 					<p class:form-success={form?.success} class="form-error">{form.message}</p>
 				{/if}
 
-				<button class="button primary" type="submit">
-					Switch to {data.profile.role === 'mentor' ? 'mentee' : 'mentor'} mode
-				</button>
+				<button class="button primary" type="submit">Update password</button>
+			</form>
+		</Panel>
 
-				{#if !data.profile.isMentorApproved}
-					<a class="button secondary" href={resolve('/mentor-verification')}
-						>Apply for mentor verification</a
-					>
+		<Panel title="Delete account">
+			<form class="form-grid" method="POST" action="?/deleteAccount">
+				<p>This will permanently remove your account, profile, sessions, and requests.</p>
+				<div class="field">
+					<label for="deletePassword">Password</label>
+					<input
+						id="deletePassword"
+						name="password"
+						type="password"
+						autocomplete="current-password"
+						required
+					/>
+				</div>
+				<div class="field">
+					<label for="confirmation">Type DELETE to confirm</label>
+					<input id="confirmation" name="confirmation" type="text" placeholder="DELETE" required />
+				</div>
+
+				{#if form?.section === 'delete' && form?.message}
+					<p class="form-error">{form.message}</p>
 				{/if}
+
+				<button class="button secondary" type="submit">Delete account</button>
 			</form>
 		</Panel>
 	</div>
-
-	<Panel title="Account management">
-		<div class="detail-list">
-			<article>
-				<p>
-					Change password and account deactivation flows have not been wired yet in the new app.
-				</p>
-			</article>
-		</div>
-	</Panel>
 </div>
