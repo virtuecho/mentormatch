@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "pnpm --filter @mentormatch/web dev",
     "build": "pnpm --filter @mentormatch/web exec vite build",
+    "verify": "pnpm lint && pnpm check && pnpm test:unit && pnpm build",
     "check": "turbo run check",
     "lint": "turbo run lint",
     "format": "turbo run format",
-    "test": "turbo run test",
+    "test": "pnpm test:unit && pnpm test:e2e",
     "test:unit": "turbo run test:unit",
     "test:e2e": "pnpm --filter @mentormatch/web test:e2e",
     "cf:deploy": "pnpm build && pnpm --filter @mentormatch/web exec wrangler deploy",

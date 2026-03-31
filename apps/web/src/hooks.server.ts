@@ -3,14 +3,26 @@ import { createD1Client } from '@mentormatch/db';
 import { getSessionUser } from '@mentormatch/feature-auth';
 import { SESSION_COOKIE_NAME } from '$lib/server/http';
 
-function readAuthSecret(event: Parameters<Handle>[0]['event']): string | null {
+const LOCAL_AUTH_HOSTNAMES = new Set(['127.0.0.1', '0.0.0.0', '::1', 'localhost']);
+export const LOCAL_DEVELOPMENT_AUTH_SECRET = 'mentormatch-local-development-secret';
+
+function isLocalRequest(url: URL): boolean {
+	return LOCAL_AUTH_HOSTNAMES.has(url.hostname);
+}
+
+export function readAuthSecret(event: Parameters<Handle>[0]['event']): string | null {
 	const envSecret = event.platform?.env?.AUTH_SECRET;
 	if (typeof envSecret === 'string' && envSecret.trim()) {
-		return envSecret;
+		return envSecret.trim();
 	}
 
 	if (typeof process !== 'undefined' && process.env.AUTH_SECRET?.trim()) {
 		return process.env.AUTH_SECRET.trim();
+	}
+
+	// Keep localhost auth flows usable during local development and preview.
+	if (isLocalRequest(event.url)) {
+		return LOCAL_DEVELOPMENT_AUTH_SECRET;
 	}
 
 	return null;

@@ -1,7 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { DatabaseClient, QueryParams, QueryResult } from '@mentormatch/db';
-import { AppError, type UserRole } from '@mentormatch/shared';
-import { getSessionUser, loginUser, registerUser } from './index';
+import type { UserRole } from '@mentormatch/shared';
 
 type UserRow = {
 	id: number;
@@ -17,7 +15,7 @@ type ProfileRow = {
 	profile_image_url: string | null;
 };
 
-class AuthTestDatabase implements DatabaseClient {
+export class AuthTestDatabase implements DatabaseClient {
 	private nextUserId = 1;
 	private users: UserRow[] = [];
 	private profiles: ProfileRow[] = [];
@@ -94,74 +92,3 @@ class AuthTestDatabase implements DatabaseClient {
 		throw new Error(`Unexpected run query: ${sql}`);
 	}
 }
-
-describe('feature-auth', () => {
-	it('registers a user, logs in, and resolves the current session user', async () => {
-		const db = new AuthTestDatabase();
-
-		const registration = await registerUser(db, {
-			fullName: 'Ada Lovelace',
-			email: 'ADA@EXAMPLE.COM',
-			password: 'password123',
-			role: 'mentor'
-		});
-		expect(registration.user.email).toBe('ada@example.com');
-		expect(registration.user.fullName).toBe('Ada Lovelace');
-
-		const session = await loginUser(
-			db,
-			{ email: 'ada@example.com', password: 'password123' },
-			'test-secret'
-		);
-		expect(session.token).toMatch(/\./);
-		expect(session.user.role).toBe('mentor');
-
-		const currentUser = await getSessionUser(db, session.token, 'test-secret');
-		expect(currentUser).toMatchObject({
-			email: 'ada@example.com',
-			fullName: 'Ada Lovelace',
-			role: 'mentor'
-		});
-	});
-
-	it('rejects invalid credentials', async () => {
-		const db = new AuthTestDatabase();
-
-		await registerUser(db, {
-			fullName: 'Grace Hopper',
-			email: 'grace@example.com',
-			password: 'password123',
-			role: 'mentee'
-		});
-
-		await expect(
-			loginUser(db, { email: 'grace@example.com', password: 'wrong-password' }, 'test-secret')
-		).rejects.toMatchObject({
-			status: 401,
-			code: 'invalid_credentials'
-		});
-	});
-
-	it('rejects duplicate email registrations', async () => {
-		const db = new AuthTestDatabase();
-
-		await registerUser(db, {
-			fullName: 'Grace Hopper',
-			email: 'grace@example.com',
-			password: 'password123',
-			role: 'mentee'
-		});
-
-		await expect(
-			registerUser(db, {
-				fullName: 'Grace Hopper',
-				email: 'grace@example.com',
-				password: 'password123',
-				role: 'mentor'
-			})
-		).rejects.toMatchObject({
-			status: 409,
-			code: 'email_taken'
-		});
-	});
-});

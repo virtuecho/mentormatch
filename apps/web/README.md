@@ -52,3 +52,18 @@ Important bindings:
 - `AUTH_SECRET`
 
 The current Worker name is `mentormatch`.
+
+## Local Auth Setup
+
+For `localhost`, the app falls back to a development-only `AUTH_SECRET` so signup and login can work during local UI work.
+
+For stable local sessions across `pnpm dev`, `pnpm preview`, and `wrangler dev`, prefer creating either:
+
+- `apps/web/.env.local`
+- `apps/web/.dev.vars`
+
+with:
+
+```bash
+AUTH_SECRET=replace-with-a-long-random-secret
+```

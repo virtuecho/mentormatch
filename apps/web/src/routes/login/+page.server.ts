@@ -1,12 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { loginUser } from '@mentormatch/feature-auth';
 import { AppError } from '@mentormatch/shared';
-import {
-	handleApiError,
-	requireAuthSecret,
-	requireDatabase,
-	setSessionCookie
-} from '$lib/server/http';
+import { requireAuthSecret, requireDatabase, setSessionCookie } from '$lib/server/http';
 
 function getRedirectTarget(url: URL, role: 'mentee' | 'mentor' | 'admin') {
 	const requested = url.searchParams.get('redirect');
@@ -41,7 +36,7 @@ export const actions = {
 				});
 			}
 
-			handleApiError(error);
+			console.error(error);
 			return fail(500, {
 				message: 'Unable to log in right now'
 			});

@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { registerUser } from '@mentormatch/feature-auth';
 import { AppError } from '@mentormatch/shared';
-import { handleApiError, requireDatabase } from '$lib/server/http';
+import { requireDatabase } from '$lib/server/http';
 
 export const actions = {
 	default: async ({ request, locals, url }) => {
@@ -38,10 +38,6 @@ export const actions = {
 				password,
 				role
 			});
-
-			const redirectTarget = url.searchParams.get('redirect');
-			const target = redirectTarget?.startsWith('/') ? redirectTarget : '/login';
-			throw redirect(303, target);
 		} catch (error) {
 			if (error instanceof AppError) {
 				return fail(error.status, {
@@ -52,7 +48,7 @@ export const actions = {
 				});
 			}
 
-			handleApiError(error);
+			console.error(error);
 			return fail(500, {
 				fullName,
 				email,
@@ -60,5 +56,9 @@ export const actions = {
 				message: 'Unable to create your account right now'
 			});
 		}
+
+		const redirectTarget = url.searchParams.get('redirect');
+		const target = redirectTarget?.startsWith('/') ? redirectTarget : '/login';
+		throw redirect(303, target);
 	}
 };
