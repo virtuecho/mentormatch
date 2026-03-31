@@ -1,7 +1,7 @@
 import type { ActionFailure } from '@sveltejs/kit';
 import { describe, expect, it } from 'vitest';
 import type { DatabaseClient, QueryParams, QueryResult } from '@mentormatch/db';
-import { serializeLocalDateTime } from '@mentormatch/shared';
+import { serializeZonedDateTime } from '@mentormatch/shared';
 import { actions } from './+page.server';
 
 type CreateSlotActionEvent = Parameters<(typeof actions)['createSlot']>[0];
@@ -109,9 +109,8 @@ function createRequest(fields: Record<string, string>) {
 	const form = new FormData();
 	const baseFields = {
 		title: 'Career planning session',
-		startTime: '',
 		startTimeLocal: '2026-03-31T09:30',
-		timezoneOffsetMinutes: '-480',
+		timeZone: 'Asia/Shanghai',
 		durationMins: '60',
 		locationType: 'online',
 		city: 'Shanghai',
@@ -131,7 +130,7 @@ function createRequest(fields: Record<string, string>) {
 }
 
 describe('mentor bookings page actions', () => {
-	it('creates an availability slot from local date-time input and timezone offset', async () => {
+	it('creates an availability slot from local date-time input and an explicit time zone', async () => {
 		const db = new MentorBookingsTestDatabase();
 
 		const result = await actions.createSlot({
@@ -144,18 +143,20 @@ describe('mentor bookings page actions', () => {
 			message: 'Availability slot created'
 		});
 		expect(db.slots).toHaveLength(1);
-		expect(db.slots[0]?.startTime).toBe(serializeLocalDateTime('2026-03-31T09:30', -480));
+		expect(db.slots[0]?.startTime).toBe(
+			serializeZonedDateTime('2026-03-31T09:30', 'Asia/Shanghai')
+		);
 	});
 
-	it('returns a 400 failure when the submitted timezone metadata is invalid', async () => {
+	it('returns a 400 failure when the submitted time zone is invalid', async () => {
 		const result = (await actions.createSlot({
 			request: createRequest({
-				timezoneOffsetMinutes: '999'
+				timeZone: 'Mars/Olympus_Mons'
 			}),
 			locals: createLocals()
 		} as unknown as CreateSlotActionEvent)) as ActionFailure<{ message: string }>;
 
 		expect(result.status).toBe(400);
-		expect(result.data.message).toMatch(/valid start time and timezone/i);
+		expect(result.data.message).toMatch(/valid start time and time zone/i);
 	});
 });

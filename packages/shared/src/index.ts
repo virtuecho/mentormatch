@@ -121,6 +121,36 @@ const optionalNullableString = z
 const localDateTimePattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const httpUrlPattern = /^[a-z][a-z0-9+.-]*:\/\//i;
 
+function getTimeZoneDateParts(timestamp: number, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  });
+
+  const values = Object.fromEntries(
+    formatter
+      .formatToParts(new Date(timestamp))
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
+}
+
 function isValidHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -184,6 +214,98 @@ export function serializeLocalDateTime(
     timezoneOffsetMinutes * 60_000;
 
   return new Date(utcTime).toISOString();
+}
+
+export function isValidTimeZone(value: string | null | undefined): boolean {
+  if (typeof value !== "string" || !value.trim()) {
+    return false;
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value.trim() });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function serializeZonedDateTime(
+  value: string | null | undefined,
+  timeZone: string | null | undefined,
+): string | null {
+  if (typeof value !== "string" || typeof timeZone !== "string") {
+    return null;
+  }
+
+  const normalizedTimeZone = timeZone.trim();
+  if (!isValidTimeZone(normalizedTimeZone)) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const parts = localDateTimePattern.exec(trimmed);
+  if (!parts) {
+    return null;
+  }
+
+  const [, year, month, day, hour, minute] = parts;
+  const targetParts = {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+  };
+
+  let guess = Date.UTC(
+    targetParts.year,
+    targetParts.month - 1,
+    targetParts.day,
+    targetParts.hour,
+    targetParts.minute,
+  );
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const zonedParts = getTimeZoneDateParts(guess, normalizedTimeZone);
+    const targetUtc = Date.UTC(
+      targetParts.year,
+      targetParts.month - 1,
+      targetParts.day,
+      targetParts.hour,
+      targetParts.minute,
+    );
+    const zonedUtc = Date.UTC(
+      zonedParts.year,
+      zonedParts.month - 1,
+      zonedParts.day,
+      zonedParts.hour,
+      zonedParts.minute,
+    );
+    const diff = targetUtc - zonedUtc;
+
+    guess += diff;
+
+    if (diff === 0) {
+      break;
+    }
+  }
+
+  const resolved = getTimeZoneDateParts(guess, normalizedTimeZone);
+  if (
+    resolved.year !== targetParts.year ||
+    resolved.month !== targetParts.month ||
+    resolved.day !== targetParts.day ||
+    resolved.hour !== targetParts.hour ||
+    resolved.minute !== targetParts.minute
+  ) {
+    return null;
+  }
+
+  return new Date(guess).toISOString();
 }
 
 const httpUrlSchema = z.url().refine((value) => isValidHttpUrl(value), {

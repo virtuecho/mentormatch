@@ -58,7 +58,8 @@ Protected pages:
 - mentor applications are reviewed by admin accounts in `/admin/review`
 - mentor approval happens before a user can switch into mentor mode
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
-- mentor availability is entered in the creator's local time and stored as UTC so it renders correctly per viewer locale
+- mentor availability defaults to the creator's current local time zone, but mentors can switch it before publishing
+- mentor availability is stored as UTC so it renders correctly per viewer locale
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
 Local frontend URL after starting the app:

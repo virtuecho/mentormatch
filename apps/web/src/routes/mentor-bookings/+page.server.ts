@@ -5,7 +5,7 @@ import {
 	getMyAvailability
 } from '@mentormatch/feature-availability';
 import { cancelBooking, listBookings, respondToBooking } from '@mentormatch/feature-bookings';
-import { AppError, serializeLocalDateTime } from '@mentormatch/shared';
+import { AppError, serializeLocalDateTime, serializeZonedDateTime } from '@mentormatch/shared';
 import {
 	getFormError,
 	handleApiError,
@@ -106,16 +106,18 @@ export const actions = {
 		const form = await request.formData();
 		const submittedStartTime = String(form.get('startTime') ?? '').trim();
 		const submittedLocalStartTime = String(form.get('startTimeLocal') ?? '').trim();
+		const submittedTimeZone = String(form.get('timeZone') ?? '').trim();
 		const rawTimezoneOffset = String(form.get('timezoneOffsetMinutes') ?? '').trim();
 		const timezoneOffsetMinutes = rawTimezoneOffset ? Number(rawTimezoneOffset) : Number.NaN;
 		const startTime =
+			serializeZonedDateTime(submittedLocalStartTime, submittedTimeZone) ||
 			submittedStartTime ||
 			serializeLocalDateTime(submittedLocalStartTime, timezoneOffsetMinutes) ||
 			'';
 
 		if (!startTime) {
 			return fail(400, {
-				message: 'Please choose a valid start time and timezone'
+				message: 'Please choose a valid start time and time zone'
 			});
 		}
 

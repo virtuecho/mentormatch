@@ -23,7 +23,8 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - admin accounts review mentor applications on `/admin/review`
 - approved users can switch into mentor mode after review
 - profile and application links are normalized to `https://...` before validation
-- availability is entered in local browser time, converted to UTC on submit, and rendered back in each viewer's locale
+- availability defaults to the mentor's current browser time zone, but the mentor can switch to another IANA time zone before publishing
+- availability is converted to UTC on submit and rendered back in each viewer's locale
 
 ## Repository Structure
 

@@ -51,7 +51,8 @@ Product behavior to keep in mind:
 - settings is the place for password changes and account deletion
 - the logged-in navigation includes a logout action
 - profile and application links accept bare domains and are normalized to `https://...`
-- mentors create availability in their local time zone, and the app stores it in UTC so mentees see the right local time on their side
+- mentors create availability in their local time zone by default, but they can switch to another time zone before publishing
+- the app stores availability in UTC so mentees see the right local time on their side
 
 ## Cloudflare
 

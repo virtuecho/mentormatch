@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  isValidTimeZone,
   mentorRequestSchema,
   normalizeHttpUrl,
   profileUpdateSchema,
   serializeLocalDateTime,
+  serializeZonedDateTime,
 } from "./index";
 
 describe("shared helpers", () => {
@@ -79,5 +81,22 @@ describe("shared helpers", () => {
     expect(serializeLocalDateTime("2026-03-31T09:30", -660)).toBe(
       "2026-03-30T22:30:00.000Z",
     );
+  });
+
+  it("serializes date-time input using an explicit IANA time zone", () => {
+    expect(serializeZonedDateTime("2026-01-15T09:30", "Asia/Shanghai")).toBe(
+      "2026-01-15T01:30:00.000Z",
+    );
+    expect(
+      serializeZonedDateTime("2026-01-15T09:30", "America/Los_Angeles"),
+    ).toBe("2026-01-15T17:30:00.000Z");
+  });
+
+  it("validates time zone identifiers before converting them", () => {
+    expect(isValidTimeZone("Asia/Shanghai")).toBe(true);
+    expect(isValidTimeZone("Mars/Olympus_Mons")).toBe(false);
+    expect(
+      serializeZonedDateTime("2026-01-15T09:30", "Mars/Olympus_Mons"),
+    ).toBeNull();
   });
 });

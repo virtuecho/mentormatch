@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 
 	let { data, form } = $props();
@@ -9,17 +10,42 @@
 		{ value: 'rejected', label: 'Rejected' },
 		{ value: 'completed', label: 'Completed' }
 	] as const;
+	const fallbackTimeZones = [
+		'UTC',
+		'America/Los_Angeles',
+		'America/New_York',
+		'Europe/London',
+		'Europe/Paris',
+		'Asia/Shanghai',
+		'Asia/Singapore',
+		'Asia/Tokyo',
+		'Australia/Sydney'
+	] as const;
+	const supportedTimeZones =
+		typeof Intl.supportedValuesOf === 'function'
+			? Intl.supportedValuesOf('timeZone')
+			: [...fallbackTimeZones];
 	let activeFilter = $state('all');
 	let startTimeLocal = $state('');
-	let timeZoneLabel = $state('your local time zone');
-	const startTimeIso = $derived(startTimeLocal ? new Date(startTimeLocal).toISOString() : '');
-	const timezoneOffsetMinutes = $derived(
-		startTimeLocal ? new Date(startTimeLocal).getTimezoneOffset() : 0
-	);
+	let browserTimeZone = $state('your local time zone');
+	let selectedTimeZone = $state('UTC');
+	let timeZoneOptions = $state([...supportedTimeZones]);
 
-	if (typeof window !== 'undefined') {
-		timeZoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local time zone';
-	}
+	onMount(() => {
+		const resolvedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+		browserTimeZone = resolvedTimeZone;
+		selectedTimeZone = resolvedTimeZone;
+
+		if (!timeZoneOptions.includes(resolvedTimeZone)) {
+			timeZoneOptions = [resolvedTimeZone, ...timeZoneOptions];
+		}
+	});
+
+	const timeZoneDescription = $derived(
+		selectedTimeZone === browserTimeZone
+			? `This slot will use ${selectedTimeZone}. Members will see it in their own local time.`
+			: `This slot will use ${selectedTimeZone}. Your device is currently set to ${browserTimeZone}. Members will still see it in their own local time.`
+	);
 
 	const filteredBookings = $derived(
 		activeFilter === 'all'
@@ -52,15 +78,24 @@
 							bind:value={startTimeLocal}
 							required
 						/>
-						<input type="hidden" name="startTime" value={startTimeIso} />
+					</div>
+					<div class="field">
+						<label for="timeZone">Time zone</label>
 						<input
-							type="hidden"
-							name="timezoneOffsetMinutes"
-							value={String(timezoneOffsetMinutes)}
+							id="timeZone"
+							name="timeZone"
+							type="text"
+							list="time-zone-options"
+							bind:value={selectedTimeZone}
+							placeholder="Asia/Shanghai"
+							required
 						/>
-						<p class="subtle field-note">
-							Choose the time in {timeZoneLabel}. Members will see it in their own local time.
-						</p>
+						<datalist id="time-zone-options">
+							{#each timeZoneOptions as timeZone (timeZone)}
+								<option value={timeZone}></option>
+							{/each}
+						</datalist>
+						<p class="subtle field-note">{timeZoneDescription}</p>
 					</div>
 					<div class="field">
 						<label for="durationMins">Duration (minutes)</label>
