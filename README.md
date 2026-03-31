@@ -138,6 +138,7 @@ Important points:
 - the Worker build upload command is exposed at the repo root as `pnpm cf:upload`
 - root-level [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
 - `pnpm cf:upload` and `npx wrangler versions upload` both use the root Wrangler config, which runs `pnpm build` before uploading
+- D1 migrations are sourced from `packages/db/migrations` through `migrations_dir` in the Wrangler config
 - the D1 binding name is `DB`
 - Cloudflare runtime bindings and secrets should be configured in Cloudflare, not GitHub Actions
 

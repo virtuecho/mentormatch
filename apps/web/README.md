@@ -68,6 +68,7 @@ Important bindings:
 - `DB`
 - `ASSETS`
 - `AUTH_SECRET`
+- D1 migrations are loaded from `../../packages/db/migrations` through `migrations_dir`
 
 The current Worker name is `mentormatch`.
 
