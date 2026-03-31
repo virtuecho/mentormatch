@@ -5,8 +5,13 @@ import {
 	getMyAvailability
 } from '@mentormatch/feature-availability';
 import { cancelBooking, listBookings, respondToBooking } from '@mentormatch/feature-bookings';
-import { AppError } from '@mentormatch/shared';
-import { handleApiError, requireApprovedMentor, requireDatabase } from '$lib/server/http';
+import { AppError, serializeLocalDateTime } from '@mentormatch/shared';
+import {
+	getFormError,
+	handleApiError,
+	requireApprovedMentor,
+	requireDatabase
+} from '$lib/server/http';
 
 type AvailabilitySlotRow = {
 	id: number;
@@ -99,11 +104,25 @@ export const actions = {
 	createSlot: async ({ request, locals }) => {
 		const user = requireApprovedMentor(locals);
 		const form = await request.formData();
+		const submittedStartTime = String(form.get('startTime') ?? '').trim();
+		const submittedLocalStartTime = String(form.get('startTimeLocal') ?? '').trim();
+		const rawTimezoneOffset = String(form.get('timezoneOffsetMinutes') ?? '').trim();
+		const timezoneOffsetMinutes = rawTimezoneOffset ? Number(rawTimezoneOffset) : Number.NaN;
+		const startTime =
+			submittedStartTime ||
+			serializeLocalDateTime(submittedLocalStartTime, timezoneOffsetMinutes) ||
+			'';
+
+		if (!startTime) {
+			return fail(400, {
+				message: 'Please choose a valid start time and timezone'
+			});
+		}
 
 		try {
 			await createAvailabilitySlot(requireDatabase(locals), user.id, {
 				title: String(form.get('title') ?? '').trim() || 'Mentorship Session',
-				startTime: String(form.get('startTime') ?? ''),
+				startTime,
 				durationMins: Number(form.get('durationMins')),
 				locationType: String(form.get('locationType') ?? 'in_person'),
 				city: String(form.get('city') ?? '').trim(),
@@ -123,9 +142,12 @@ export const actions = {
 				});
 			}
 
-			handleApiError(error);
-			return fail(500, {
-				message: 'Unable to create the availability slot right now'
+			const formError = getFormError(error, 'Unable to create the availability slot right now');
+			if (formError.status >= 500) {
+				handleApiError(error);
+			}
+			return fail(formError.status, {
+				message: formError.message
 			});
 		}
 	},

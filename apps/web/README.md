@@ -50,6 +50,8 @@ Product behavior to keep in mind:
 - mentor applications are reviewed by MentorMatch admins in `/admin/review`
 - settings is the place for password changes and account deletion
 - the logged-in navigation includes a logout action
+- profile and application links accept bare domains and are normalized to `https://...`
+- mentors create availability in their local time zone, and the app stores it in UTC so mentees see the right local time on their side
 
 ## Cloudflare
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel, StatCard, TagList } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data } = $props();
 </script>
@@ -59,9 +60,9 @@
 					<label for="time">Preferred time</label>
 					<input id="time" name="time" type="time" value={data.filters.time} />
 				</div>
-				<div class="cta-row">
-					<button class="button primary" type="submit">Search</button>
-					<a class="button secondary" href={resolve('/dashboard')}>Clear</a>
+				<div class="cta-row search-actions">
+					<button class="button primary action-button" type="submit">Search mentors</button>
+					<a class="button secondary action-button" href={resolve('/dashboard')}>Clear filters</a>
 				</div>
 			</div>
 		</form>
@@ -85,8 +86,9 @@
 			{#each data.mentors as mentor (mentor.id)}
 				<Panel>
 					<div class="detail-card">
-						<div class="booking-row">
-							<div>
+						<div class="mentor-card-header">
+							<ProfileAvatar name={mentor.fullName} src={mentor.profileImageUrl} />
+							<div class="stack compact">
 								<h3>{mentor.fullName}</h3>
 								<p>{mentor.position} · {mentor.company}</p>
 							</div>

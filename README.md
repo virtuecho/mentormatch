@@ -57,6 +57,8 @@ Protected pages:
 - mentor applications are submitted from `/mentor-verification`
 - mentor applications are reviewed by admin accounts in `/admin/review`
 - mentor approval happens before a user can switch into mentor mode
+- profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
+- mentor availability is entered in the creator's local time and stored as UTC so it renders correctly per viewer locale
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
 Local frontend URL after starting the app:
@@ -118,7 +120,7 @@ The repository uses layered verification:
 - unit tests for feature packages and app-level utilities
 - end-to-end tests for browser-visible flows
 - framework and type checks via `svelte-check` and TypeScript
-- CI runs these checks so account creation, login, logout, settings, and mentor review flows stay covered
+- CI runs these checks so account creation, login, logout, settings, mentor review, profile link normalization, and availability time handling stay covered
 
 ## Deployment
 

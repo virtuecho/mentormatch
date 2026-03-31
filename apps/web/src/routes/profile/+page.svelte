@@ -1,6 +1,12 @@
 <script lang="ts">
+	import { DEFAULT_AVATAR } from '@mentormatch/shared';
 	import { PageHeader, Panel, TagList } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 	let { data, form } = $props();
+
+	function getEditableProfileImageUrl(profileImageUrl: string) {
+		return profileImageUrl === DEFAULT_AVATAR ? '' : profileImageUrl;
+	}
 </script>
 
 <div class="page">
@@ -14,6 +20,19 @@
 	<div class="split">
 		<Panel title="Profile at a glance">
 			<div class="stack">
+				<div class="mentor-card-header">
+					<ProfileAvatar
+						name={data.profile.profile.fullName}
+						src={data.profile.profile.profileImageUrl}
+						size="lg"
+					/>
+					<div class="stack compact">
+						<h3>{data.profile.profile.fullName}</h3>
+						<p>
+							{data.profile.profile.bio ?? 'Add a short intro so people know how you can help.'}
+						</p>
+					</div>
+				</div>
 				<p><strong>Email:</strong> {data.profile.email}</p>
 				<p><strong>Role:</strong> {data.profile.role}</p>
 				<p><strong>Location:</strong> {data.profile.profile.location ?? 'Not set'}</p>
@@ -67,9 +86,11 @@
 						<input
 							id="profileImageUrl"
 							name="profileImageUrl"
-							type="url"
-							value={data.profile.profile.profileImageUrl ?? ''}
-							placeholder="https://..."
+							type="text"
+							inputmode="url"
+							autocomplete="url"
+							value={getEditableProfileImageUrl(data.profile.profile.profileImageUrl)}
+							placeholder="images.example.com/photo.jpg"
 						/>
 					</div>
 				</div>
@@ -79,14 +100,19 @@
 					<textarea id="bio" name="bio">{data.profile.profile.bio ?? ''}</textarea>
 				</div>
 
+				<p class="subtle field-note">You can paste links with or without https://.</p>
+
 				<div class="split">
 					<div class="field">
 						<label for="linkedinUrl">LinkedIn URL</label>
 						<input
 							id="linkedinUrl"
 							name="linkedinUrl"
-							type="url"
+							type="text"
+							inputmode="url"
+							autocomplete="url"
 							value={data.profile.profile.linkedinUrl ?? ''}
+							placeholder="linkedin.com/in/your-name"
 						/>
 					</div>
 					<div class="field">
@@ -94,8 +120,11 @@
 						<input
 							id="websiteUrl"
 							name="websiteUrl"
-							type="url"
+							type="text"
+							inputmode="url"
+							autocomplete="url"
 							value={data.profile.profile.websiteUrl ?? ''}
+							placeholder="your-site.com"
 						/>
 					</div>
 				</div>
@@ -106,8 +135,11 @@
 						<input
 							id="instagramUrl"
 							name="instagramUrl"
-							type="url"
+							type="text"
+							inputmode="url"
+							autocomplete="url"
 							value={data.profile.profile.instagramUrl ?? ''}
+							placeholder="instagram.com/your-name"
 						/>
 					</div>
 					<div class="field">
@@ -115,8 +147,11 @@
 						<input
 							id="facebookUrl"
 							name="facebookUrl"
-							type="url"
+							type="text"
+							inputmode="url"
+							autocomplete="url"
 							value={data.profile.profile.facebookUrl ?? ''}
+							placeholder="facebook.com/your-name"
 						/>
 					</div>
 				</div>

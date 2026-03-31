@@ -7,7 +7,7 @@
 	<PageHeader
 		eyebrow="Become a mentor"
 		title="Apply to become a MentorMatch mentor"
-		description="Tell us about your experience and a MentorMatch team member will review your application."
+		description="Tell us about your experience and MentorMatch admins will review your application."
 	/>
 
 	<div class="split">
@@ -21,8 +21,8 @@
 						{data.profile.profile.mentorRequest?.status ?? 'No request submitted yet'}
 					</p>
 					<p>
-						Your application goes into the MentorMatch review queue. You can check your latest
-						status here anytime.
+						MentorMatch admins review each application in the internal review queue. You can check
+						your latest status here anytime.
 					</p>
 				</article>
 			</div>
@@ -32,7 +32,10 @@
 			{#if data.profile.isMentorApproved}
 				<div class="detail-card">
 					<h3>You are approved to mentor</h3>
-					<p>You can switch into mentor mode from Account settings whenever you are ready.</p>
+					<p>
+						The MentorMatch admin team has approved your application. You can switch into mentor
+						mode from Account settings whenever you are ready.
+					</p>
 				</div>
 			{:else}
 				<form class="form-grid" method="POST" action="?/submit">
@@ -65,9 +68,11 @@
 							<input
 								id="linkedinUrl"
 								name="linkedinUrl"
-								type="url"
+								type="text"
+								inputmode="url"
+								autocomplete="url"
 								value={data.profile.profile.linkedinUrl ?? ''}
-								placeholder="https://linkedin.com/in/..."
+								placeholder="linkedin.com/in/your-name"
 							/>
 						</div>
 						<div class="field">
@@ -195,11 +200,16 @@
 						<input
 							id="documentUrl"
 							name="documentUrl"
-							type="url"
+							type="text"
+							inputmode="url"
+							autocomplete="url"
 							value={data.profile.profile.mentorRequest?.document_url ?? ''}
-							placeholder="https://..."
+							placeholder="drive.google.com/file/... or your-site.com/resume.pdf"
 							required
 						/>
+						<p class="subtle field-note">
+							Paste a full link or just the domain. We will format it for you.
+						</p>
 					</div>
 					<div class="field">
 						<label for="note">Anything else we should know?</label>

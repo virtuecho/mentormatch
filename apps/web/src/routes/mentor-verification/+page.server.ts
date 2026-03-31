@@ -6,7 +6,7 @@ import {
 	type RecordStatus
 } from '@mentormatch/shared';
 import { getProfile, submitMentorRequest, updateProfile } from '@mentormatch/feature-profile';
-import { requireDatabase, requireUser } from '$lib/server/http';
+import { getFormError, requireDatabase, requireUser } from '$lib/server/http';
 
 const AVAILABLE_SKILLS = [
 	'JavaScript',
@@ -177,9 +177,12 @@ export const actions = {
 				});
 			}
 
-			console.error(error);
-			return fail(500, {
-				message: 'Unable to send your mentor application right now.'
+			const formError = getFormError(error, 'Unable to send your mentor application right now.');
+			if (formError.status >= 500) {
+				console.error(error);
+			}
+			return fail(formError.status, {
+				message: formError.message
 			});
 		}
 	}

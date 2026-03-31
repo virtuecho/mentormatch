@@ -74,6 +74,10 @@ select {
 	gap: 1rem;
 }
 
+.stack.compact {
+	gap: 0.35rem;
+}
+
 .split {
 	display: grid;
 	gap: 1rem;
@@ -109,6 +113,19 @@ select {
 	flex-wrap: wrap;
 }
 
+.section-header {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	align-items: end;
+	justify-content: space-between;
+}
+
+.section-copy,
+.field-note {
+	margin: 0;
+}
+
 .button {
 	display: inline-flex;
 	align-items: center;
@@ -130,6 +147,20 @@ select {
 .button.secondary {
 	background: rgba(15, 23, 42, 0.06);
 	color: #0f172a;
+	box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.action-button,
+.filter-chip {
+	min-width: 8.5rem;
+}
+
+.search-actions {
+	align-items: stretch;
+}
+
+.search-actions .button {
+	flex: 1 1 10rem;
 }
 
 .hero {
@@ -173,6 +204,21 @@ select {
 .list-card li {
 	margin: 0;
 	color: #475569;
+}
+
+.mentor-card-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem;
+}
+
+.mentor-card-header > .pill {
+	margin-left: auto;
+}
+
+.grow {
+	flex: 1 1 auto;
 }
 
 .detail-list {
@@ -242,6 +288,13 @@ select {
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.request-card {
+	padding: 1rem;
+	border-radius: 1rem;
+	background: rgba(248, 250, 252, 0.8);
+	border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
 .form-error,
 .form-success {
 	margin: 0;
@@ -258,6 +311,17 @@ select {
 .form-success {
 	background: rgba(34, 197, 94, 0.12);
 	color: #15803d;
+}
+
+@media (max-width: 640px) {
+	.action-button,
+	.filter-chip {
+		width: 100%;
+	}
+
+	.mentor-card-header > .pill {
+		margin-left: 0;
+	}
 }
 
 .booking-row,
@@ -307,5 +371,9 @@ select {
 
 	.hero {
 		grid-template-columns: 1fr;
+	}
+
+	.search-actions .button {
+		width: 100%;
 	}
 }

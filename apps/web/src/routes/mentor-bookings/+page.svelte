@@ -2,7 +2,25 @@
 	import { PageHeader, Panel } from '@mentormatch/ui';
 
 	let { data, form } = $props();
+	const bookingFilters = [
+		{ value: 'all', label: 'All' },
+		{ value: 'pending', label: 'Pending' },
+		{ value: 'accepted', label: 'Accepted' },
+		{ value: 'rejected', label: 'Rejected' },
+		{ value: 'completed', label: 'Completed' }
+	] as const;
 	let activeFilter = $state('all');
+	let startTimeLocal = $state('');
+	let timeZoneLabel = $state('your local time zone');
+	const startTimeIso = $derived(startTimeLocal ? new Date(startTimeLocal).toISOString() : '');
+	const timezoneOffsetMinutes = $derived(
+		startTimeLocal ? new Date(startTimeLocal).getTimezoneOffset() : 0
+	);
+
+	if (typeof window !== 'undefined') {
+		timeZoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local time zone';
+	}
+
 	const filteredBookings = $derived(
 		activeFilter === 'all'
 			? data.bookings
@@ -13,30 +31,12 @@
 <div class="page">
 	<PageHeader
 		eyebrow="Mentor sessions"
-		title="Manage requests and share new availability"
+		title="Manage requests and share your next available time"
 		description="Review incoming requests and open new times when you are ready to meet."
 	/>
 
-	<div class="cta-row">
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'all')}
-			>All</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'pending')}
-			>Pending</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'accepted')}
-			>Accepted</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'rejected')}
-			>Rejected</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'completed')}
-			>Completed</button
-		>
-	</div>
-
 	<div class="split">
-		<Panel title="Open a new time">
+		<Panel title="Share a new time">
 			<form class="form-grid" method="POST" action="?/createSlot">
 				<div class="field">
 					<label for="title">Session title</label>
@@ -45,7 +45,22 @@
 				<div class="split">
 					<div class="field">
 						<label for="startTime">Start time</label>
-						<input id="startTime" name="startTime" type="datetime-local" required />
+						<input
+							id="startTime"
+							name="startTimeLocal"
+							type="datetime-local"
+							bind:value={startTimeLocal}
+							required
+						/>
+						<input type="hidden" name="startTime" value={startTimeIso} />
+						<input
+							type="hidden"
+							name="timezoneOffsetMinutes"
+							value={String(timezoneOffsetMinutes)}
+						/>
+						<p class="subtle field-note">
+							Choose the time in {timeZoneLabel}. Members will see it in their own local time.
+						</p>
 					</div>
 					<div class="field">
 						<label for="durationMins">Duration (minutes)</label>
@@ -100,7 +115,7 @@
 					<label for="note">Note</label>
 					<textarea id="note" name="note" placeholder="Optional prep instructions"></textarea>
 				</div>
-				<button class="button primary" type="submit">Create meeting</button>
+				<button class="button primary" type="submit">Publish time</button>
 			</form>
 		</Panel>
 
@@ -138,49 +153,75 @@
 		</Panel>
 	</div>
 
-	<section class="card-list">
-		{#if filteredBookings.length === 0}
-			<Panel>
+	<Panel title="Incoming requests">
+		<div class="section-header">
+			<p class="subtle section-copy">
+				Filter mentee requests by status. Your published availability stays separate on the right.
+			</p>
+			<div class="cta-row filter-row">
+				{#each bookingFilters as filter (filter.value)}
+					<button
+						class="button filter-chip"
+						class:primary={activeFilter === filter.value}
+						class:secondary={activeFilter !== filter.value}
+						type="button"
+						aria-pressed={activeFilter === filter.value}
+						onclick={() => (activeFilter = filter.value)}
+					>
+						{filter.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<section class="card-list">
+			{#if filteredBookings.length === 0}
 				<div class="detail-card">
-					<h3>No mentee requests yet</h3>
-					<p>Incoming requests will appear here after mentees request your published slots.</p>
+					<h3>
+						{data.bookings.length === 0 ? 'No mentee requests yet' : 'No requests in this view'}
+					</h3>
+					<p>
+						{data.bookings.length === 0
+							? 'Incoming requests will appear here after mentees request your published slots.'
+							: 'Try another status filter to review the rest of your requests.'}
+					</p>
 				</div>
-			</Panel>
-		{:else}
-			{#each filteredBookings as booking (booking.id)}
-				<Panel>
-					<div class="booking-row">
-						<div class="stack">
-							<span class={`status ${booking.status.toLowerCase()}`}>{booking.status}</span>
-							<h3>{booking.topic}</h3>
-							<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
-							<p>{booking.slot.city} · {booking.slot.address}</p>
-							<p>Mentee: {booking.counterpart.fullName}</p>
+			{:else}
+				{#each filteredBookings as booking (booking.id)}
+					<article class="detail-card request-card">
+						<div class="booking-row">
+							<div class="stack">
+								<span class={`status ${booking.status.toLowerCase()}`}>{booking.status}</span>
+								<h3>{booking.topic}</h3>
+								<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
+								<p>{booking.slot.city} · {booking.slot.address}</p>
+								<p>Mentee: {booking.counterpart.fullName}</p>
+							</div>
+							<div class="cta-row">
+								{#if booking.status === 'pending'}
+									<form method="POST" action="?/respond">
+										<input type="hidden" name="bookingId" value={booking.id} />
+										<input type="hidden" name="response" value="accepted" />
+										<button class="button primary" type="submit">Accept</button>
+									</form>
+									<form method="POST" action="?/respond">
+										<input type="hidden" name="bookingId" value={booking.id} />
+										<input type="hidden" name="response" value="rejected" />
+										<button class="button secondary" type="submit">Reject</button>
+									</form>
+								{:else if booking.status === 'accepted'}
+									<form method="POST" action="?/cancel">
+										<input type="hidden" name="bookingId" value={booking.id} />
+										<button class="button secondary" type="submit">Cancel booking</button>
+									</form>
+								{/if}
+							</div>
 						</div>
-						<div class="cta-row">
-							{#if booking.status === 'pending'}
-								<form method="POST" action="?/respond">
-									<input type="hidden" name="bookingId" value={booking.id} />
-									<input type="hidden" name="response" value="accepted" />
-									<button class="button primary" type="submit">Accept</button>
-								</form>
-								<form method="POST" action="?/respond">
-									<input type="hidden" name="bookingId" value={booking.id} />
-									<input type="hidden" name="response" value="rejected" />
-									<button class="button secondary" type="submit">Reject</button>
-								</form>
-							{:else if booking.status === 'accepted'}
-								<form method="POST" action="?/cancel">
-									<input type="hidden" name="bookingId" value={booking.id} />
-									<button class="button secondary" type="submit">Cancel booking</button>
-								</form>
-							{/if}
-						</div>
-					</div>
-				</Panel>
-			{/each}
-		{/if}
-	</section>
+					</article>
+				{/each}
+			{/if}
+		</section>
+	</Panel>
 
 	{#if form?.message}
 		<p class:form-success={form?.success} class="form-error">{form.message}</p>

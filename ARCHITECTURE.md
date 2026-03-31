@@ -22,6 +22,8 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - users who want to mentor submit an application on `/mentor-verification`
 - admin accounts review mentor applications on `/admin/review`
 - approved users can switch into mentor mode after review
+- profile and application links are normalized to `https://...` before validation
+- availability is entered in local browser time, converted to UTC on submit, and rendered back in each viewer's locale
 
 ## Repository Structure
 
@@ -175,7 +177,7 @@ The current workspace uses:
 - `pnpm build`
 
 Coverage is split so feature logic can be tested separately from browser-visible flows.
-The current test suite covers signup, login, logout, settings, mentor application review, and the mentor/mentee routing rules that connect them.
+The current test suite covers signup, login, logout, settings, mentor application review, profile link normalization, availability time conversion, and the mentor/mentee routing rules that connect them.
 
 ## CI/CD
 

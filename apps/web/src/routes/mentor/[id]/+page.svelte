@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel, TagList } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data, form } = $props();
 </script>
@@ -34,6 +35,13 @@
 	<div class="split">
 		<Panel title="Mentor summary">
 			<div class="stack">
+				<div class="mentor-card-header">
+					<ProfileAvatar name={data.mentor.fullName} src={data.mentor.profileImageUrl} size="lg" />
+					<div class="stack compact">
+						<h3>{data.mentor.fullName}</h3>
+						<p>{data.mentor.bio ?? 'Mentor profile'}</p>
+					</div>
+				</div>
 				<p><strong>Email:</strong> {data.mentor.email}</p>
 				<p><strong>City:</strong> {data.mentor.location ?? 'Remote'}</p>
 				<p><strong>Phone:</strong> {data.mentor.phone ?? 'Not provided'}</p>

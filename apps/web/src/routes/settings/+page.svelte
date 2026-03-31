@@ -58,7 +58,7 @@
 			<Panel title="Mentor status">
 				<div class="form-grid">
 					<p>
-						Apply to mentor from this page, then wait for a MentorMatch team member to review your
+						Apply to mentor from this page, then wait for a MentorMatch admin to review your
 						application. Once approved, you can switch into mentor mode anytime.
 					</p>
 
@@ -82,6 +82,16 @@
 							{getMentorActionLabel(data.profile.profile.mentorRequest)}
 						</a>
 					{/if}
+				</div>
+			</Panel>
+		{:else}
+			<Panel title="Review queue">
+				<div class="form-grid">
+					<p>
+						MentorMatch admins approve mentor applications from the review queue before someone can
+						start mentoring.
+					</p>
+					<a class="button primary" href={resolve('/admin/review')}>Open review applications</a>
 				</div>
 			</Panel>
 		{/if}
