@@ -45,12 +45,14 @@ The current deployment target is:
 - one D1 binding: `DB`
 - one SvelteKit app build output under `apps/web/.svelte-kit/cloudflare`
 
-The repository root exposes `pnpm cf:upload`, which runs:
+The repository root exposes a deployable [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc).
 
-1. `pnpm build`
-2. `wrangler versions upload` inside `apps/web`
+The root upload path is:
 
-This keeps the monorepo installation flow at the root while delegating the actual Worker upload to the deployable app package.
+1. `pnpm cf:upload`
+2. or `npx wrangler versions upload`
+
+Both commands run from the repository root, and Wrangler triggers `pnpm build` before uploading the Worker version. This keeps Cloudflare Workers Builds aligned with the monorepo root while still publishing the SvelteKit output from `apps/web`.
 
 ## Layer Responsibilities
 

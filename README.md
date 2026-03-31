@@ -117,7 +117,8 @@ Important points:
 
 - the Worker name is `mentormatch`
 - the Worker build upload command is exposed at the repo root as `pnpm cf:upload`
-- `pnpm cf:upload` builds the SvelteKit Worker first, then uploads the version with Wrangler
+- root-level [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
+- `pnpm cf:upload` and `npx wrangler versions upload` both use the root Wrangler config, which runs `pnpm build` before uploading
 - the D1 binding name is `DB`
 - Cloudflare runtime bindings and secrets should be configured in Cloudflare, not GitHub Actions
 
