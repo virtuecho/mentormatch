@@ -144,6 +144,48 @@ Important points:
 
 GitHub Actions is used for validation only. Deployment is handled by Cloudflare Workers Builds.
 
+## Admin Role SQL Operations
+
+Admin access is controlled by the `users.role` column.
+
+List all current admin accounts:
+
+```sql
+SELECT id, email, role, is_mentor_approved, created_at, updated_at
+FROM users
+WHERE role = 'admin'
+ORDER BY id;
+```
+
+Promote a user to admin:
+
+```sql
+UPDATE users
+SET role = 'admin',
+    updated_at = datetime('now')
+WHERE email = 'person@example.com';
+```
+
+Demote an admin back to a normal mentee account:
+
+```sql
+UPDATE users
+SET role = 'mentee',
+    updated_at = datetime('now')
+WHERE email = 'person@example.com'
+  AND role = 'admin';
+```
+
+Run the same queries against the remote Cloudflare D1 database with Wrangler:
+
+```bash
+pnpm exec wrangler d1 execute mentormatch --remote --command "SELECT id, email, role, is_mentor_approved, created_at, updated_at FROM users WHERE role = 'admin' ORDER BY id;"
+pnpm exec wrangler d1 execute mentormatch --remote --command "UPDATE users SET role = 'admin', updated_at = datetime('now') WHERE email = 'person@example.com';"
+pnpm exec wrangler d1 execute mentormatch --remote --command "UPDATE users SET role = 'mentee', updated_at = datetime('now') WHERE email = 'person@example.com' AND role = 'admin';"
+```
+
+After changing a role, sign out and sign back in so the session reflects the updated permissions.
+
 ## Architecture
 
 See [ARCHITECTURE.md](/Users/admin/MentorMatch/ARCHITECTURE.md) for the request flow, package responsibilities, and deployment model.
