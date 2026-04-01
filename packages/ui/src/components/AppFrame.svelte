@@ -52,8 +52,8 @@
     {#if user}
       <div class="account-card">
         <p class="account-label">Signed in as</p>
-        <strong>{user.fullName}</strong>
-        <p>{user.email}</p>
+        <strong class="account-name">{user.fullName}</strong>
+        <p class="account-email">{user.email}</p>
         <span class="account-role">{user.role}</span>
 
         <form method="POST" action="/logout">
@@ -144,6 +144,7 @@
   .account-card {
     margin-top: 2rem;
     padding: 1rem;
+    min-width: 0;
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 1rem;
     background: rgba(248, 250, 252, 0.9);
@@ -160,6 +161,12 @@
     display: block;
     margin-top: 0.3rem;
     color: #0f172a;
+  }
+
+  .account-name,
+  .account-email {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .account-role {

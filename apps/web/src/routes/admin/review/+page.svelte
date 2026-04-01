@@ -38,9 +38,14 @@
 
 						<p>
 							<strong>Document:</strong>
-							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-							<a href={request.documentUrl} target="_blank" rel="noreferrer">Open supporting file</a
-							>
+							{#if request.documentUrl}
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+								<a href={request.documentUrl} target="_blank" rel="noreferrer">
+									Open supporting file
+								</a>
+							{:else}
+								No supporting file provided
+							{/if}
 						</p>
 
 						{#if request.note}

@@ -133,30 +133,47 @@
 			</form>
 		</Panel>
 
-		<Panel title="Delete account">
-			<form class="form-grid" method="POST" action="?/deleteAccount">
-				<p>This will permanently remove your account, profile, sessions, and requests.</p>
-				<div class="field">
-					<label for="deletePassword">Password</label>
-					<input
-						id="deletePassword"
-						name="password"
-						type="password"
-						autocomplete="current-password"
-						required
-					/>
+		{#if data.profile.role === 'admin'}
+			<Panel title="Account protection">
+				<div class="form-grid">
+					<p>Admin accounts are protected and cannot be deleted from account settings.</p>
+					<p class="subtle">
+						Use a separate non-admin account if you need to test account deletion.
+					</p>
 				</div>
-				<div class="field">
-					<label for="confirmation">Type DELETE to confirm</label>
-					<input id="confirmation" name="confirmation" type="text" placeholder="DELETE" required />
-				</div>
+			</Panel>
+		{:else}
+			<Panel title="Delete account">
+				<form class="form-grid" method="POST" action="?/deleteAccount">
+					<p>This will permanently remove your account, profile, sessions, and requests.</p>
+					<div class="field">
+						<label for="deletePassword">Password</label>
+						<input
+							id="deletePassword"
+							name="password"
+							type="password"
+							autocomplete="current-password"
+							required
+						/>
+					</div>
+					<div class="field">
+						<label for="confirmation">Type DELETE to confirm</label>
+						<input
+							id="confirmation"
+							name="confirmation"
+							type="text"
+							placeholder="DELETE"
+							required
+						/>
+					</div>
 
-				{#if form?.section === 'delete' && form?.message}
-					<p class="form-error">{form.message}</p>
-				{/if}
+					{#if form?.section === 'delete' && form?.message}
+						<p class="form-error">{form.message}</p>
+					{/if}
 
-				<button class="button secondary" type="submit">Delete account</button>
-			</form>
-		</Panel>
+					<button class="button secondary" type="submit">Delete account</button>
+				</form>
+			</Panel>
+		{/if}
 	</div>
 </div>

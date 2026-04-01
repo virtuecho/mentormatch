@@ -322,11 +322,6 @@ const optionalUrlSchema = z.preprocess(
   httpUrlSchema.nullable().optional(),
 );
 
-const requiredUrlSchema = z.preprocess(
-  (value) => normalizeHttpUrl(typeof value === "string" ? value : null) ?? "",
-  httpUrlSchema,
-);
-
 export const educationSchema = z.object({
   id: z.number().int().positive().optional(),
   university: nonEmptyString.max(200),
@@ -388,7 +383,7 @@ export const profileUpdateSchema = z.object({
 });
 
 export const mentorRequestSchema = z.object({
-  documentUrl: requiredUrlSchema,
+  documentUrl: optionalUrlSchema,
   note: optionalNullableString,
 });
 
@@ -403,27 +398,29 @@ export const mentorSearchSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(12),
 });
 
-export const availabilityCreateSchema = z.object({
-  title: z.string().trim().max(255).default("Mentorship Session"),
-  startTime: z.iso.datetime(),
-  durationMins: z.coerce.number().int().min(15).max(480),
-  locationType: z.enum(LOCATION_TYPES).default("in_person"),
-  city: z.string().trim().min(1).max(120),
-  address: z.string().trim().min(1).max(255),
-  maxParticipants: z.coerce.number().int().min(1).max(20).default(2),
-  note: optionalNullableString,
-  bookingMode: z.enum(SLOT_BOOKING_MODES).default("open"),
-  presetTopic: z.string().trim().max(255).nullable().optional(),
-  presetDescription: optionalNullableString,
-}).superRefine((value, ctx) => {
-  if (value.bookingMode === "preset" && !value.presetTopic) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["presetTopic"],
-      message: "Please add a topic for preset sessions",
-    });
-  }
-});
+export const availabilityCreateSchema = z
+  .object({
+    title: z.string().trim().max(255).default("Mentorship Session"),
+    startTime: z.iso.datetime(),
+    durationMins: z.coerce.number().int().min(15).max(480),
+    locationType: z.enum(LOCATION_TYPES).default("in_person"),
+    city: z.string().trim().min(1).max(120),
+    address: z.string().trim().min(1).max(255),
+    maxParticipants: z.coerce.number().int().min(1).max(20).default(2),
+    note: optionalNullableString,
+    bookingMode: z.enum(SLOT_BOOKING_MODES).default("open"),
+    presetTopic: z.string().trim().max(255).nullable().optional(),
+    presetDescription: optionalNullableString,
+  })
+  .superRefine((value, ctx) => {
+    if (value.bookingMode === "preset" && !value.presetTopic) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["presetTopic"],
+        message: "Please add a topic for preset sessions",
+      });
+    }
+  });
 
 export const bookingCreateSchema = z.object({
   availabilitySlotId: z.coerce.number().int().positive(),

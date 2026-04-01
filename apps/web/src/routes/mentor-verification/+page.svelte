@@ -39,6 +39,11 @@
 				</div>
 			{:else}
 				<form class="form-grid" method="POST" action="?/submit">
+					<p class="subtle">
+						Everything on this form is optional. If your basic account profile is already set up,
+						you can submit without filling anything else.
+					</p>
+
 					<div class="split">
 						<div class="field">
 							<label for="fullName">Full name</label>
@@ -47,18 +52,11 @@
 								name="fullName"
 								type="text"
 								value={data.profile.profile.fullName}
-								required
 							/>
 						</div>
 						<div class="field">
 							<label for="phone">Phone</label>
-							<input
-								id="phone"
-								name="phone"
-								type="text"
-								value={data.profile.profile.phone ?? ''}
-								required
-							/>
+							<input id="phone" name="phone" type="text" value={data.profile.profile.phone ?? ''} />
 						</div>
 					</div>
 
@@ -77,7 +75,7 @@
 						</div>
 						<div class="field">
 							<label for="experienceRange">Experience range</label>
-							<select id="experienceRange" name="experienceRange" required>
+							<select id="experienceRange" name="experienceRange">
 								<option value="">Select experience</option>
 								<option value="1-2">1-2 years</option>
 								<option value="3-5">3-5 years</option>
@@ -96,7 +94,6 @@
 								type="text"
 								value={data.profile.profile.experiences[0]?.position ?? ''}
 								placeholder="Senior Software Engineer"
-								required
 							/>
 						</div>
 						<div class="field">
@@ -107,7 +104,6 @@
 								type="text"
 								value={data.profile.profile.experiences[0]?.company ?? ''}
 								placeholder="MentorMatch"
-								required
 							/>
 						</div>
 					</div>
@@ -120,7 +116,6 @@
 							type="text"
 							value={data.profile.profile.experiences[0]?.industry ?? ''}
 							placeholder="Technology"
-							required
 						/>
 					</div>
 
@@ -175,7 +170,7 @@
 
 					<div class="field">
 						<label for="bio">Personal bio</label>
-						<textarea id="bio" name="bio" required>{data.profile.profile.bio ?? ''}</textarea>
+						<textarea id="bio" name="bio">{data.profile.profile.bio ?? ''}</textarea>
 					</div>
 
 					<div class="field">
@@ -205,7 +200,6 @@
 							autocomplete="url"
 							value={data.profile.profile.mentorRequest?.document_url ?? ''}
 							placeholder="drive.google.com/file/... or your-site.com/resume.pdf"
-							required
 						/>
 						<p class="subtle field-note">
 							Paste a full link or just the domain. We will format it for you.

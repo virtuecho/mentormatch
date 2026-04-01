@@ -83,26 +83,39 @@ function buildExperienceRecords(
 	form: FormData,
 	expertise: string[]
 ): ExperienceRecord[] {
+	const currentExperience = existing[0];
 	const position = String(form.get('currentTitle') ?? '').trim();
 	const company = String(form.get('company') ?? '').trim();
 	const industry = String(form.get('industry') ?? '').trim();
 	const experienceRange = String(form.get('experienceRange') ?? '').trim();
+	const hasExperienceDetails = Boolean(position || company || industry || experienceRange);
 
-	if (!position && !company && !industry && !experienceRange && expertise.length === 0) {
-		return existing;
+	if (!hasExperienceDetails) {
+		if (!currentExperience || expertise.length === 0) {
+			return existing;
+		}
+
+		return [
+			{
+				...currentExperience,
+				expertise
+			}
+		];
 	}
 
 	return [
 		{
-			id: existing[0]?.id ?? 1,
-			company: company || existing[0]?.company || 'Current Company',
-			position: position || existing[0]?.position || 'Mentor',
-			industry: industry || existing[0]?.industry || null,
-			expertise: expertise.length > 0 ? expertise : (existing[0]?.expertise ?? []),
-			startYear: existing[0]?.startYear ?? inferStartYear(experienceRange),
+			id: currentExperience?.id ?? 1,
+			company: company || currentExperience?.company || 'Current Company',
+			position: position || currentExperience?.position || 'Mentor',
+			industry: industry || currentExperience?.industry || null,
+			expertise: expertise.length > 0 ? expertise : (currentExperience?.expertise ?? []),
+			startYear: experienceRange
+				? inferStartYear(experienceRange)
+				: (currentExperience?.startYear ?? new Date().getFullYear()),
 			endYear: null,
 			status: 'on_going',
-			description: existing[0]?.description ?? null
+			description: currentExperience?.description ?? null
 		}
 	];
 }
@@ -128,42 +141,43 @@ export const actions = {
 		const mentorshipAreas = parseArray(form, 'mentorshipAreas');
 		const documentUrl = String(form.get('documentUrl') ?? '').trim();
 		const note = String(form.get('note') ?? '').trim();
-
-		if (expertise.length === 0 || mentorshipAreas.length === 0) {
-			return fail(400, {
-				message: 'Select at least one skill and one mentorship area'
-			});
-		}
+		const fullName = String(form.get('fullName') ?? '').trim();
+		const phone = String(form.get('phone') ?? '').trim();
+		const bio = String(form.get('bio') ?? '').trim();
+		const linkedinUrl = String(form.get('linkedinUrl') ?? '').trim();
+		const currentTitle = String(form.get('currentTitle') ?? '').trim();
+		const company = String(form.get('company') ?? '').trim();
+		const experienceRange = String(form.get('experienceRange') ?? '').trim();
+		const combinedMentorSkills = [...new Set([...expertise, ...mentorshipAreas])];
+		const applicationNote = [
+			note || null,
+			currentTitle ? `Current title: ${currentTitle}` : null,
+			company ? `Company: ${company}` : null,
+			experienceRange ? `Experience: ${experienceRange}` : null,
+			mentorshipAreas.length > 0 ? `Mentorship areas: ${mentorshipAreas.join(', ')}` : null
+		]
+			.filter(Boolean)
+			.join('\n');
 
 		try {
 			await updateProfile(db, user.id, {
-				fullName: String(form.get('fullName') ?? '').trim() || currentProfile.profile.fullName,
+				fullName: fullName || currentProfile.profile.fullName,
 				location: currentProfile.profile.location ?? null,
-				phone: String(form.get('phone') ?? '').trim() || (currentProfile.profile.phone ?? null),
-				bio: String(form.get('bio') ?? '').trim() || (currentProfile.profile.bio ?? null),
+				phone: phone || (currentProfile.profile.phone ?? null),
+				bio: bio || (currentProfile.profile.bio ?? null),
 				profileImageUrl: currentProfile.profile.profileImageUrl ?? null,
-				linkedinUrl:
-					String(form.get('linkedinUrl') ?? '').trim() ||
-					(currentProfile.profile.linkedinUrl ?? null),
+				linkedinUrl: linkedinUrl || (currentProfile.profile.linkedinUrl ?? null),
 				instagramUrl: currentProfile.profile.instagramUrl ?? null,
 				facebookUrl: currentProfile.profile.facebookUrl ?? null,
 				websiteUrl: currentProfile.profile.websiteUrl ?? null,
-				mentorSkills: [...new Set([...expertise, ...mentorshipAreas])],
+				mentorSkills: combinedMentorSkills,
 				educations: buildEducationRecords(currentProfile.profile.educations, form),
 				experiences: buildExperienceRecords(currentProfile.profile.experiences, form, expertise)
 			});
 
 			await submitMentorRequest(db, user.id, {
-				documentUrl,
-				note: [
-					note,
-					`Current title: ${String(form.get('currentTitle') ?? '').trim()}`,
-					`Company: ${String(form.get('company') ?? '').trim()}`,
-					`Experience: ${String(form.get('experienceRange') ?? '').trim()}`,
-					`Mentorship areas: ${mentorshipAreas.join(', ')}`
-				]
-					.filter(Boolean)
-					.join('\n')
+				documentUrl: documentUrl || null,
+				note: applicationNote || null
 			});
 
 			return {

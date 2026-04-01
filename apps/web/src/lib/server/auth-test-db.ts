@@ -72,7 +72,9 @@ export class AuthTestDatabase implements DatabaseClient {
 		if (sql.includes('SELECT id, password_hash')) {
 			const id = Number(params[0]);
 			const user = this.users.find((item) => item.id === id);
-			return (user ? { id: user.id, password_hash: user.password_hash } : null) as T | null;
+			return (
+				user ? { id: user.id, password_hash: user.password_hash, role: user.role } : null
+			) as T | null;
 		}
 
 		throw new Error(`Unexpected get query: ${sql}`);

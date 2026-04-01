@@ -56,6 +56,15 @@ describe("shared helpers", () => {
     );
   });
 
+  it("allows mentor applications without a supporting document link", () => {
+    const payload = mentorRequestSchema.parse({
+      documentUrl: "",
+      note: "Ready to mentor",
+    });
+
+    expect(payload.documentUrl).toBeNull();
+  });
+
   it("keeps rejecting malformed links after normalization", () => {
     expect(() =>
       profileUpdateSchema.parse({

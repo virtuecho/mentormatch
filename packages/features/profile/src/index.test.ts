@@ -166,7 +166,11 @@ class ProfileTestDatabase implements DatabaseClient {
       return { changes: 1, lastRowId: null };
     }
 
-    if (sql.includes("UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ?")) {
+    if (
+      sql.includes(
+        "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ?",
+      )
+    ) {
       const [role, approved, _updatedAt, userId] = params;
       const user = this.users.find((item) => item.id === Number(userId));
       if (!user) {
@@ -227,6 +231,21 @@ describe("feature-profile", () => {
     ]);
   });
 
+  it("allows mentor applications without a supporting document link", async () => {
+    const db = new ProfileTestDatabase();
+
+    await submitMentorRequest(db, 1, {
+      documentUrl: null,
+      note: "Ready to help with interviews.",
+    });
+
+    await expect(listMentorRequests(db)).resolves.toMatchObject([
+      {
+        documentUrl: null,
+      },
+    ]);
+  });
+
   it("approves mentor applications into mentor mode immediately", async () => {
     const db = new ProfileTestDatabase();
 
@@ -236,7 +255,9 @@ describe("feature-profile", () => {
     });
     await reviewMentorRequest(db, 1, { status: "approved" });
 
-    await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({ role: "mentor" });
+    await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({
+      role: "mentor",
+    });
   });
 
   it("updates an existing pending mentor application instead of duplicating it", async () => {
