@@ -79,6 +79,9 @@
   }
 
   .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
     padding: 2rem 1.25rem;
     border-right: 1px solid rgba(15, 23, 42, 0.08);
     background: rgba(255, 255, 255, 0.78);
@@ -86,13 +89,15 @@
     position: sticky;
     top: 0;
     height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .brand {
     display: flex;
     gap: 1rem;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
   }
 
   .brand-mark {
@@ -142,7 +147,7 @@
   }
 
   .account-card {
-    margin-top: 2rem;
+    margin-top: auto;
     padding: 1rem;
     min-width: 0;
     border: 1px solid rgba(15, 23, 42, 0.08);
