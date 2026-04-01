@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel, TagList } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data, form } = $props();
 </script>
@@ -34,6 +35,13 @@
 	<div class="split">
 		<Panel title="Mentor summary">
 			<div class="stack">
+				<div class="mentor-card-header">
+					<ProfileAvatar name={data.mentor.fullName} src={data.mentor.profileImageUrl} size="lg" />
+					<div class="stack compact">
+						<h3>{data.mentor.fullName}</h3>
+						<p>{data.mentor.bio ?? 'Mentor profile'}</p>
+					</div>
+				</div>
 				<p><strong>Email:</strong> {data.mentor.email}</p>
 				<p><strong>City:</strong> {data.mentor.location ?? 'Remote'}</p>
 				<p><strong>Phone:</strong> {data.mentor.phone ?? 'Not provided'}</p>
@@ -58,32 +66,47 @@
 							<p>{new Date(slot.startTime).toLocaleString()}</p>
 							<p>{slot.city} · {slot.address}</p>
 							<p>{slot.durationMins} minutes · {slot.maxParticipants} participant(s)</p>
+							{#if slot.bookingMode === 'preset'}
+								<p><strong>Planned topic:</strong> {slot.presetTopic ?? slot.title ?? 'Session'}</p>
+								{#if slot.presetDescription}
+									<p>{slot.presetDescription}</p>
+								{/if}
+							{/if}
 
-							{#if data.viewerRole === 'mentee'}
+							{#if data.viewerCanBook}
 								<form method="POST" action="?/book" class="form-grid">
 									<input type="hidden" name="availabilitySlotId" value={slot.id} />
-									<div class="field">
-										<label for={`topic-${slot.id}`}>Topic</label>
-										<input
-											id={`topic-${slot.id}`}
-											name="topic"
-											type="text"
-											placeholder="What do you want to discuss?"
-											required
-										/>
-									</div>
-									<div class="field">
-										<label for={`description-${slot.id}`}>Description</label>
-										<textarea
-											id={`description-${slot.id}`}
-											name="description"
-											placeholder="Optional details or goals for this session"
-										></textarea>
-									</div>
+									{#if slot.bookingMode === 'preset'}
+										<p class="subtle field-note">
+											This slot already has a set agenda from the mentor, so you can request it
+											directly.
+										</p>
+									{:else}
+										<div class="field">
+											<label for={`topic-${slot.id}`}>Topic</label>
+											<input
+												id={`topic-${slot.id}`}
+												name="topic"
+												type="text"
+												placeholder="What do you want to discuss?"
+												required
+											/>
+										</div>
+										<div class="field">
+											<label for={`description-${slot.id}`}>Description</label>
+											<textarea
+												id={`description-${slot.id}`}
+												name="description"
+												placeholder="Optional details or goals for this session"
+											></textarea>
+										</div>
+									{/if}
 									{#if form?.message}
 										<p class:form-success={form?.success} class="form-error">{form.message}</p>
 									{/if}
-									<button class="button primary" type="submit">Request this slot</button>
+									<button class="button primary" type="submit">
+										{slot.bookingMode === 'preset' ? 'Request this session' : 'Request this slot'}
+									</button>
 								</form>
 							{/if}
 						</article>

@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { createAvailabilitySlot, getMyAvailability } from '@mentormatch/feature-availability';
-import { handleApiError, requireDatabase, requireUser } from '$lib/server/http';
+import { handleApiError, requireApprovedMentor, requireDatabase } from '$lib/server/http';
 
 export async function GET({ locals }) {
 	try {
-		const user = requireUser(locals);
+		const user = requireApprovedMentor(locals);
 		const slots = await getMyAvailability(requireDatabase(locals), user.id);
 		return json({ ok: true, slots });
 	} catch (error) {
@@ -14,7 +14,7 @@ export async function GET({ locals }) {
 
 export async function POST({ request, locals }) {
 	try {
-		const user = requireUser(locals);
+		const user = requireApprovedMentor(locals);
 		const slot = await createAvailabilitySlot(
 			requireDatabase(locals),
 			user.id,

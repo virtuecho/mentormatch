@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data, form } = $props();
 	let activeFilter = $state('all');
@@ -13,9 +14,9 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="Mentee view"
+		eyebrow="My sessions"
 		title="Track your upcoming mentorship sessions"
-		description="Bookings remain visible from one shell, with room for Worker-powered actions and incremental server-side updates."
+		description="See upcoming sessions, pending requests, and recent updates in one place."
 	/>
 
 	<div class="cta-row">
@@ -49,17 +50,23 @@
 			{#each filteredBookings as booking (booking.id)}
 				<Panel>
 					<div class="booking-row">
-						<div class="stack">
-							<span class={`status ${booking.status.toLowerCase()}`}>{booking.status}</span>
-							<h3>{booking.topic}</h3>
-							<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
-							<p>{booking.slot.city} · {booking.slot.address}</p>
-							<p>Mentor: {booking.counterpart.fullName}</p>
+						<div class="mentor-card-header grow">
+							<ProfileAvatar
+								name={booking.counterpart.fullName}
+								src={booking.counterpart.profileImageUrl}
+							/>
+							<div class="stack compact grow">
+								<span class={`status ${booking.status.toLowerCase()}`}>{booking.status}</span>
+								<h3>{booking.topic}</h3>
+								<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
+								<p>{booking.slot.city} · {booking.slot.address}</p>
+								<p>Mentor: {booking.counterpart.fullName}</p>
+							</div>
 						</div>
 						<div class="cta-row">
 							<a
 								class="button secondary"
-								href={resolve('/mentor-profile/[id]', { id: String(booking.counterpart.id) })}
+								href={resolve('/mentor/[id]', { id: String(booking.counterpart.id) })}
 							>
 								View mentor
 							</a>

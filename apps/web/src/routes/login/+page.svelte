@@ -6,9 +6,9 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="Access"
+		eyebrow="Welcome back"
 		title="Log back in"
-		description="This shell keeps authentication inside the same full-stack app, ready for cookie-based sessions on the Worker."
+		description="Log in to manage your sessions, profile, and mentor activity."
 	/>
 
 	<div class="split">
@@ -44,11 +44,11 @@
 			</form>
 		</Panel>
 
-		<Panel title="What changes with the new stack">
+		<Panel title="Why people use MentorMatch">
 			<ul class="detail-list">
-				<li>Frontend and backend now share one Worker deployment target.</li>
-				<li>Auth flows can stay server-side instead of being split across two deployments.</li>
-				<li>New features can plug into shared feature packages and route handlers.</li>
+				<li>Find mentors who match your goals and experience level.</li>
+				<li>Book sessions and keep all your requests in one place.</li>
+				<li>Share your experience and mentor others when you are ready.</li>
 			</ul>
 		</Panel>
 	</div>

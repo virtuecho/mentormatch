@@ -6,7 +6,7 @@ import {
 	type RecordStatus
 } from '@mentormatch/shared';
 import { getProfile, submitMentorRequest, updateProfile } from '@mentormatch/feature-profile';
-import { handleApiError, requireDatabase, requireUser } from '$lib/server/http';
+import { getFormError, requireDatabase, requireUser } from '$lib/server/http';
 
 const AVAILABLE_SKILLS = [
 	'JavaScript',
@@ -168,7 +168,7 @@ export const actions = {
 
 			return {
 				success: true,
-				message: 'Verification request submitted'
+				message: 'Your mentor application has been sent to the MentorMatch team.'
 			};
 		} catch (error) {
 			if (error instanceof AppError) {
@@ -177,9 +177,12 @@ export const actions = {
 				});
 			}
 
-			handleApiError(error);
-			return fail(500, {
-				message: 'Unable to submit the verification request right now'
+			const formError = getFormError(error, 'Unable to send your mentor application right now.');
+			if (formError.status >= 500) {
+				console.error(error);
+			}
+			return fail(formError.status, {
+				message: formError.message
 			});
 		}
 	}

@@ -1,12 +1,7 @@
 import { redirect } from '@sveltejs/kit';
-import type { UserRole } from '@mentormatch/shared';
-import { getNavigation } from '$lib/navigation';
+import { getDefaultAuthenticatedPath, getNavigation } from '$lib/navigation';
 
 const publicPaths = new Set(['/', '/login', '/signup']);
-
-function getDefaultAuthenticatedPath(role: UserRole | null | undefined) {
-	return role === 'mentor' ? '/mentor-bookings' : '/dashboard';
-}
 
 export function load({ locals, url }) {
 	const path = url.pathname;
@@ -25,15 +20,21 @@ export function load({ locals, url }) {
 	}
 
 	if (path === '/login' || path === '/signup') {
-		throw redirect(303, getDefaultAuthenticatedPath(user.role));
+		throw redirect(303, getDefaultAuthenticatedPath(user));
 	}
 
-	if (user.role === 'mentor' && path === '/dashboard') {
-		throw redirect(303, '/mentor-bookings');
+	if (user.role !== 'admin' && path === '/mentor-bookings' && !user.isMentorApproved) {
+		throw redirect(303, '/mentor-verification');
 	}
 
-	if (user.role === 'mentor' && path === '/my-bookings') {
-		throw redirect(303, '/mentor-bookings');
+	if (
+		user.role === 'admin' &&
+		(path === '/dashboard' ||
+			path === '/my-bookings' ||
+			path === '/mentor-bookings' ||
+			path === '/mentor-verification')
+	) {
+		throw redirect(303, '/admin/review');
 	}
 
 	if (user.role === 'mentee' && path === '/mentor-bookings') {
@@ -42,7 +43,7 @@ export function load({ locals, url }) {
 
 	return {
 		user,
-		navItems: getNavigation(user.role),
+		navItems: getNavigation(user),
 		currentPath: path
 	};
 }

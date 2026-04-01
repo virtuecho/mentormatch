@@ -8,6 +8,7 @@ It is responsible for:
 - exposing explicit API handlers under `src/routes/api/*`
 - wiring auth, cookies, and request-scoped Worker context
 - producing the Cloudflare Worker build consumed by Wrangler
+- presenting the user-facing account experience, including logout, password changes, account deletion, and mentor application review handoff
 
 ## Run From the Repository Root
 
@@ -37,9 +38,26 @@ Protected pages require an authenticated session and the Worker runtime bindings
 - `/dashboard`
 - `/my-bookings`
 - `/mentor-bookings`
+- `/members/[id]`
 - `/profile`
 - `/settings`
 - `/mentor-verification`
+- `/admin/review` for admin review
+
+Product behavior to keep in mind:
+
+- all new accounts start as mentees
+- approved users gain mentor tools and still keep mentee booking access
+- mentor applications are reviewed by MentorMatch admins in `/admin/review`
+- admin accounts also get a direct homepage entry into the review queue
+- settings is the place for password changes and account deletion
+- the logged-in navigation includes a logout action
+- profile and application links accept bare domains and are normalized to `https://...`
+- mentors create availability in their local time zone by default, but they can switch to another time zone before publishing
+- mentors can publish single or weekly recurring slots
+- a slot can either keep a preset mentor agenda or let the mentee provide the topic
+- member profile editing now includes education and experience record management
+- the app stores availability in UTC so mentees see the right local time on their side
 
 ## Cloudflare
 
@@ -50,5 +68,21 @@ Important bindings:
 - `DB`
 - `ASSETS`
 - `AUTH_SECRET`
+- D1 migrations are loaded from `../../packages/db/migrations` through `migrations_dir`
 
 The current Worker name is `mentormatch`.
+
+## Local Auth Setup
+
+For `localhost`, the app falls back to a development-only `AUTH_SECRET` so signup and login can work during local UI work.
+
+For stable local sessions across `pnpm dev`, `pnpm preview`, and `wrangler dev`, prefer creating either:
+
+- `apps/web/.env.local`
+- `apps/web/.dev.vars`
+
+with:
+
+```bash
+AUTH_SECRET=replace-with-a-long-random-secret
+```

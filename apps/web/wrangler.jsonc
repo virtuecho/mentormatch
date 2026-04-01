@@ -14,7 +14,8 @@
 		{
 			"binding": "DB",
 			"database_name": "mentormatch",
-			"database_id": "0739cea4-a421-4209-a282-a77c86626eac"
+			"database_id": "0739cea4-a421-4209-a282-a77c86626eac",
+			"migrations_dir": "../../packages/db/migrations"
 		}
 	]
 }

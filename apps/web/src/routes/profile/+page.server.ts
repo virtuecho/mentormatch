@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { AppError, type EducationRecord, type ExperienceRecord } from '@mentormatch/shared';
 import { getProfile, updateProfile } from '@mentormatch/feature-profile';
-import { handleApiError, requireDatabase, requireUser } from '$lib/server/http';
+import { getFormError, handleApiError, requireDatabase, requireUser } from '$lib/server/http';
 
 function parseRecordArray<T>(value: FormDataEntryValue | null): T[] {
 	if (typeof value !== 'string' || !value.trim()) {
@@ -61,9 +61,12 @@ export const actions = {
 				});
 			}
 
-			handleApiError(error);
-			return fail(500, {
-				message: 'Unable to update the profile right now'
+			const formError = getFormError(error, 'Unable to update the profile right now');
+			if (formError.status >= 500) {
+				handleApiError(error);
+			}
+			return fail(formError.status, {
+				message: formError.message
 			});
 		}
 	}

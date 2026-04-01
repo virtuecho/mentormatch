@@ -139,7 +139,20 @@ export async function getMentorProfile(db: DatabaseClient, mentorId: number) {
 		]),
 		db.all<any>(
 			`
-				SELECT id, title, start_time, duration_mins, location_type, city, address, max_participants, note, is_booked
+				SELECT
+					id,
+					title,
+					booking_mode,
+					preset_topic,
+					preset_description,
+					start_time,
+					duration_mins,
+					location_type,
+					city,
+					address,
+					max_participants,
+					note,
+					is_booked
 				FROM availability_slots
 				WHERE mentor_id = ? AND start_time >= ? AND is_booked = 0
 				ORDER BY start_time ASC
@@ -193,7 +206,10 @@ export async function getMentorProfile(db: DatabaseClient, mentorId: number) {
 			address: slot.address,
 			maxParticipants: slot.max_participants,
 			note: slot.note,
-			isBooked: Boolean(slot.is_booked)
+			isBooked: Boolean(slot.is_booked),
+			bookingMode: slot.booking_mode,
+			presetTopic: slot.preset_topic,
+			presetDescription: slot.preset_description
 		}))
 	};
 }

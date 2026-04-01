@@ -14,6 +14,21 @@ Browser
 
 Only `apps/web` is deployed. Everything under `packages/*` is bundled into that Worker as internal dependencies.
 
+## Core Product Flows
+
+- guests can browse the homepage, sign up, and log in
+- signed-in users can search mentors, manage bookings, edit their profile, log out, change their password, and delete their account
+- new accounts are created as mentees first
+- users who want to mentor submit an application on `/mentor-verification`
+- admin accounts review mentor applications on `/admin/review`
+- approved users gain mentor tools while still keeping mentee booking flows
+- profile and application links are normalized to `https://...` before validation
+- availability defaults to the mentor's current browser time zone, but the mentor can switch to another IANA time zone before publishing
+- mentors can create either a one-off slot or a weekly recurring series
+- slots support two booking modes: preset mentor agenda or open topic chosen by the mentee
+- booking rules prevent duplicate same-slot requests, overlapping active mentee requests, and multiple accepted bookings on a single slot
+- availability is converted to UTC on submit and rendered back in each viewer's locale
+
 ## Repository Structure
 
 ```text
@@ -45,12 +60,14 @@ The current deployment target is:
 - one D1 binding: `DB`
 - one SvelteKit app build output under `apps/web/.svelte-kit/cloudflare`
 
-The repository root exposes `pnpm cf:upload`, which runs:
+The repository root exposes a deployable [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc).
 
-1. `pnpm build`
-2. `wrangler versions upload` inside `apps/web`
+The root upload path is:
 
-This keeps the monorepo installation flow at the root while delegating the actual Worker upload to the deployable app package.
+1. `pnpm cf:upload`
+2. or `npx wrangler versions upload`
+
+Both commands run from the repository root, and Wrangler triggers `pnpm build` before uploading the Worker version. This keeps Cloudflare Workers Builds aligned with the monorepo root while still publishing the SvelteKit output from `apps/web`.
 
 ## Layer Responsibilities
 
@@ -164,6 +181,7 @@ The current workspace uses:
 - `pnpm build`
 
 Coverage is split so feature logic can be tested separately from browser-visible flows.
+The current test suite covers signup, login, logout, settings, mentor application review, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
 
 ## CI/CD
 

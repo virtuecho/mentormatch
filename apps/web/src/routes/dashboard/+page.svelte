@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel, StatCard, TagList } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data } = $props();
 </script>
 
 <div class="page">
 	<PageHeader
-		eyebrow="Dashboard"
-		title="Browse mentors with a tighter, modular front-end shell"
-		description="The dashboard keeps the mentor discovery workflow intact while shifting the data layer behind shared Worker-first modules."
+		eyebrow="Find a mentor"
+		title="Find the right mentor for your next step"
+		description="Search by topic, skill, or location and book time when you are ready."
 	/>
 
 	<Panel title="Search mentors">
@@ -59,9 +60,9 @@
 					<label for="time">Preferred time</label>
 					<input id="time" name="time" type="time" value={data.filters.time} />
 				</div>
-				<div class="cta-row">
-					<button class="button primary" type="submit">Search</button>
-					<a class="button secondary" href={resolve('/dashboard')}>Clear</a>
+				<div class="cta-row search-actions">
+					<button class="button primary action-button" type="submit">Search mentors</button>
+					<a class="button secondary action-button" href={resolve('/dashboard')}>Clear filters</a>
 				</div>
 			</div>
 		</form>
@@ -78,28 +79,29 @@
 			<Panel>
 				<div class="detail-card">
 					<h3>No mentors found yet</h3>
-					<p>As soon as approved mentors exist in the D1 database, they will appear here.</p>
+					<p>Try a broader search or check back soon as more mentors join.</p>
 				</div>
 			</Panel>
 		{:else}
 			{#each data.mentors as mentor (mentor.id)}
 				<Panel>
 					<div class="detail-card">
-						<div class="booking-row">
-							<div>
+						<div class="mentor-card-header">
+							<ProfileAvatar name={mentor.fullName} src={mentor.profileImageUrl} />
+							<div class="stack compact">
 								<h3>{mentor.fullName}</h3>
 								<p>{mentor.position} · {mentor.company}</p>
 							</div>
 							<span class="pill">{mentor.location ?? 'Remote'}</span>
 						</div>
-						<p>{mentor.expertise.join(', ') || 'Mentorship profile ready for review.'}</p>
+						<p>{mentor.expertise.join(', ') || 'Available to help with your growth goals.'}</p>
 						<TagList tags={mentor.mentorSkills} />
 						<div class="cta-row">
 							<form method="GET" action={resolve('/mentor/[id]', { id: String(mentor.id) })}>
 								<input type="hidden" name="city" value={data.filters.city} />
 								<input type="hidden" name="date" value={data.filters.date} />
 								<input type="hidden" name="time" value={data.filters.time} />
-								<button class="button secondary" type="submit">Review mentor</button>
+								<button class="button secondary" type="submit">View profile</button>
 							</form>
 							<form method="GET" action={resolve('/mentor/[id]', { id: String(mentor.id) })}>
 								<input type="hidden" name="city" value={data.filters.city} />

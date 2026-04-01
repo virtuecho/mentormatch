@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DatabaseClient, QueryParams, QueryResult } from '@mentormatch/db';
-import { AppError, type UserRole } from '@mentormatch/shared';
-import { getSessionUser, loginUser, registerUser } from './index';
+import type { UserRole } from '@mentormatch/shared';
+import { changePassword, deleteAccount, getSessionUser, loginUser, registerUser } from './index';
 
 type UserRow = {
 	id: number;
@@ -58,6 +58,12 @@ class AuthTestDatabase implements DatabaseClient {
 			} as T;
 		}
 
+		if (sql.includes('SELECT id, password_hash')) {
+			const id = Number(params[0]);
+			const user = this.users.find((item) => item.id === id);
+			return (user ? { id: user.id, password_hash: user.password_hash } : null) as T | null;
+		}
+
 		throw new Error(`Unexpected get query: ${sql}`);
 	}
 
@@ -91,12 +97,30 @@ class AuthTestDatabase implements DatabaseClient {
 			return { changes: 1, lastRowId: null };
 		}
 
+		if (sql.includes('UPDATE users SET password_hash = ?')) {
+			const [passwordHash, _updatedAt, userId] = params;
+			const user = this.users.find((item) => item.id === Number(userId));
+			if (!user) {
+				return { changes: 0, lastRowId: null };
+			}
+
+			user.password_hash = String(passwordHash);
+			return { changes: 1, lastRowId: null };
+		}
+
+		if (sql.includes('DELETE FROM users WHERE id = ?')) {
+			const userId = Number(params[0]);
+			this.users = this.users.filter((item) => item.id !== userId);
+			this.profiles = this.profiles.filter((item) => item.user_id !== userId);
+			return { changes: 1, lastRowId: null };
+		}
+
 		throw new Error(`Unexpected run query: ${sql}`);
 	}
 }
 
 describe('feature-auth', () => {
-	it('registers a user, logs in, and resolves the current session user', async () => {
+	it('registers a user as a member, logs in, and resolves the current session user', async () => {
 		const db = new AuthTestDatabase();
 
 		const registration = await registerUser(db, {
@@ -107,6 +131,8 @@ describe('feature-auth', () => {
 		});
 		expect(registration.user.email).toBe('ada@example.com');
 		expect(registration.user.fullName).toBe('Ada Lovelace');
+		expect(registration.user.role).toBe('mentee');
+		expect(registration.user.isMentorApproved).toBe(false);
 
 		const session = await loginUser(
 			db,
@@ -114,13 +140,13 @@ describe('feature-auth', () => {
 			'test-secret'
 		);
 		expect(session.token).toMatch(/\./);
-		expect(session.user.role).toBe('mentor');
+		expect(session.user.role).toBe('mentee');
 
 		const currentUser = await getSessionUser(db, session.token, 'test-secret');
 		expect(currentUser).toMatchObject({
 			email: 'ada@example.com',
 			fullName: 'Ada Lovelace',
-			role: 'mentor'
+			role: 'mentee'
 		});
 	});
 
@@ -136,6 +162,80 @@ describe('feature-auth', () => {
 
 		await expect(
 			loginUser(db, { email: 'grace@example.com', password: 'wrong-password' }, 'test-secret')
+		).rejects.toMatchObject({
+			status: 401,
+			code: 'invalid_credentials'
+		});
+	});
+
+	it('rejects duplicate email registrations', async () => {
+		const db = new AuthTestDatabase();
+
+		await registerUser(db, {
+			fullName: 'Grace Hopper',
+			email: 'grace@example.com',
+			password: 'password123',
+			role: 'mentee'
+		});
+
+		await expect(
+			registerUser(db, {
+				fullName: 'Grace Hopper',
+				email: 'grace@example.com',
+				password: 'password123',
+				role: 'mentor'
+			})
+		).rejects.toMatchObject({
+			status: 409,
+			code: 'email_taken'
+		});
+	});
+
+	it('changes the password when the current password matches', async () => {
+		const db = new AuthTestDatabase();
+		const registration = await registerUser(db, {
+			fullName: 'Lin',
+			email: 'lin@example.com',
+			password: 'password123',
+			role: 'mentee'
+		});
+
+		await changePassword(db, registration.user.id, {
+			currentPassword: 'password123',
+			newPassword: 'newpassword456'
+		});
+
+		await expect(
+			loginUser(db, { email: 'lin@example.com', password: 'password123' }, 'test-secret')
+		).rejects.toMatchObject({
+			status: 401,
+			code: 'invalid_credentials'
+		});
+
+		await expect(
+			loginUser(db, { email: 'lin@example.com', password: 'newpassword456' }, 'test-secret')
+		).resolves.toMatchObject({
+			user: {
+				email: 'lin@example.com'
+			}
+		});
+	});
+
+	it('deletes an account when the password matches', async () => {
+		const db = new AuthTestDatabase();
+		const registration = await registerUser(db, {
+			fullName: 'Lin',
+			email: 'lin@example.com',
+			password: 'password123',
+			role: 'mentee'
+		});
+
+		await deleteAccount(db, registration.user.id, {
+			password: 'password123'
+		});
+
+		await expect(
+			loginUser(db, { email: 'lin@example.com', password: 'password123' }, 'test-secret')
 		).rejects.toMatchObject({
 			status: 401,
 			code: 'invalid_credentials'

@@ -1,6 +1,6 @@
 # MentorMatch
 
-MentorMatch is a Cloudflare Workers-first full-stack mentoring platform. It serves the public site, authentication flows, mentor discovery, availability management, and booking workflows from a single SvelteKit application backed by modular workspace packages.
+MentorMatch is a mentoring platform where people can create an account, find mentors, book sessions, manage their profile, and apply to become mentors. New accounts start as mentees, and mentor approval adds mentor tools without taking away the ability to keep booking other mentors. The product is delivered through a single SvelteKit application on Cloudflare Workers, with shared business logic split into workspace packages.
 
 ## Overview
 
@@ -45,9 +45,27 @@ Protected pages:
 - `/dashboard`
 - `/my-bookings`
 - `/mentor-bookings`
+- `/members/[id]`
 - `/profile`
 - `/settings`
 - `/mentor-verification`
+- `/admin/review` for admin users reviewing mentor applications
+
+## Account And Approval Flows
+
+- every signed-in user can log out from the main navigation
+- account settings now include password changes and account deletion
+- mentor applications are submitted from `/mentor-verification`
+- mentor applications are reviewed by admin accounts in `/admin/review`
+- approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
+- mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
+- profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
+- mentor availability defaults to the creator's current local time zone, but mentors can switch it before publishing
+- mentors can publish one-off or weekly recurring slots
+- slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
+- booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
+- mentor availability is stored as UTC so it renders correctly per viewer locale
+- the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
 Local frontend URL after starting the app:
 
@@ -108,6 +126,7 @@ The repository uses layered verification:
 - unit tests for feature packages and app-level utilities
 - end-to-end tests for browser-visible flows
 - framework and type checks via `svelte-check` and TypeScript
+- CI runs these checks so account creation, login, logout, settings, mentor review, profile editing, slot creation, booking safeguards, and availability time handling stay covered
 
 ## Deployment
 
@@ -117,11 +136,55 @@ Important points:
 
 - the Worker name is `mentormatch`
 - the Worker build upload command is exposed at the repo root as `pnpm cf:upload`
-- `pnpm cf:upload` builds the SvelteKit Worker first, then uploads the version with Wrangler
+- root-level [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
+- `pnpm cf:upload` and `npx wrangler versions upload` both use the root Wrangler config, which runs `pnpm build` before uploading
+- D1 migrations are sourced from `packages/db/migrations` through `migrations_dir` in the Wrangler config
 - the D1 binding name is `DB`
 - Cloudflare runtime bindings and secrets should be configured in Cloudflare, not GitHub Actions
 
 GitHub Actions is used for validation only. Deployment is handled by Cloudflare Workers Builds.
+
+## Admin Role SQL Operations
+
+Admin access is controlled by the `users.role` column.
+
+List all current admin accounts:
+
+```sql
+SELECT id, email, role, is_mentor_approved, created_at, updated_at
+FROM users
+WHERE role = 'admin'
+ORDER BY id;
+```
+
+Promote a user to admin:
+
+```sql
+UPDATE users
+SET role = 'admin',
+    updated_at = datetime('now')
+WHERE email = 'person@example.com';
+```
+
+Demote an admin back to a normal mentee account:
+
+```sql
+UPDATE users
+SET role = 'mentee',
+    updated_at = datetime('now')
+WHERE email = 'person@example.com'
+  AND role = 'admin';
+```
+
+Run the same queries against the remote Cloudflare D1 database with Wrangler:
+
+```bash
+pnpm exec wrangler d1 execute mentormatch --remote --command "SELECT id, email, role, is_mentor_approved, created_at, updated_at FROM users WHERE role = 'admin' ORDER BY id;"
+pnpm exec wrangler d1 execute mentormatch --remote --command "UPDATE users SET role = 'admin', updated_at = datetime('now') WHERE email = 'person@example.com';"
+pnpm exec wrangler d1 execute mentormatch --remote --command "UPDATE users SET role = 'mentee', updated_at = datetime('now') WHERE email = 'person@example.com' AND role = 'admin';"
+```
+
+After changing a role, sign out and sign back in so the session reflects the updated permissions.
 
 ## Architecture
 

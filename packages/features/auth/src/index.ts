@@ -1,7 +1,16 @@
 import bcrypt from 'bcryptjs';
 import { jwtVerify, SignJWT } from 'jose';
 import type { DatabaseClient, QueryParams } from '@mentormatch/db';
-import { AppError, ensureAvatar, loginSchema, registerSchema, type SessionUser, type UserRole } from '@mentormatch/shared';
+import {
+	AppError,
+	changePasswordSchema,
+	deleteAccountSchema,
+	ensureAvatar,
+	loginSchema,
+	registerSchema,
+	type SessionUser,
+	type UserRole
+} from '@mentormatch/shared';
 
 const SESSION_ISSUER = 'mentormatch';
 const SESSION_AUDIENCE = 'mentormatch-web';
@@ -52,6 +61,21 @@ async function getUserByEmail(db: DatabaseClient, email: string): Promise<UserRo
 	);
 }
 
+async function getUserCredentialsById(
+	db: DatabaseClient,
+	userId: number
+): Promise<Pick<UserRow, 'id' | 'password_hash'> | null> {
+	return db.get<Pick<UserRow, 'id' | 'password_hash'>>(
+		`
+			SELECT id, password_hash
+			FROM users
+			WHERE id = ?
+			LIMIT 1
+		`,
+		[userId]
+	);
+}
+
 export async function createSessionToken(userId: number, role: UserRole, secret: string): Promise<string> {
 	return new SignJWT({ role })
 		.setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
@@ -88,12 +112,14 @@ export async function registerUser(
 
 	const now = new Date().toISOString();
 	const passwordHash = await bcrypt.hash(payload.password, 10);
+	// Everyone starts as a mentee and can apply for mentor approval later.
+	const initialRole: UserRole = 'mentee';
 	const userInsert = await db.run(
 		`
 			INSERT INTO users (email, password_hash, role, is_mentor_approved, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?)
 		`,
-		[payload.email, passwordHash, payload.role, 1, now, now]
+		[payload.email, passwordHash, initialRole, 0, now, now]
 	);
 
 	if (!userInsert.lastRowId) {
@@ -113,8 +139,8 @@ export async function registerUser(
 		user: {
 			id: userInsert.lastRowId,
 			email: payload.email,
-			role: payload.role,
-			isMentorApproved: true,
+			role: initialRole,
+			isMentorApproved: false,
 			fullName: payload.fullName,
 			profileImageUrl: ensureAvatar(null)
 		}
@@ -145,6 +171,54 @@ export async function loginUser(
 }
 
 export async function logoutUser(_db: DatabaseClient, _token: string | undefined): Promise<{ ok: true }> {
+	return { ok: true };
+}
+
+export async function changePassword(
+	db: DatabaseClient,
+	userId: number,
+	input: unknown
+): Promise<{ ok: true }> {
+	const payload = changePasswordSchema.parse(input);
+	const user = await getUserCredentialsById(db, userId);
+
+	if (!user) {
+		throw new AppError(404, 'user_not_found', 'User not found');
+	}
+
+	const validPassword = await bcrypt.compare(payload.currentPassword, user.password_hash);
+	if (!validPassword) {
+		throw new AppError(401, 'invalid_credentials', 'Current password is incorrect');
+	}
+
+	const nextPasswordHash = await bcrypt.hash(payload.newPassword, 10);
+	await db.run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
+		nextPasswordHash,
+		new Date().toISOString(),
+		userId
+	]);
+
+	return { ok: true };
+}
+
+export async function deleteAccount(
+	db: DatabaseClient,
+	userId: number,
+	input: unknown
+): Promise<{ ok: true }> {
+	const payload = deleteAccountSchema.parse(input);
+	const user = await getUserCredentialsById(db, userId);
+
+	if (!user) {
+		throw new AppError(404, 'user_not_found', 'User not found');
+	}
+
+	const validPassword = await bcrypt.compare(payload.password, user.password_hash);
+	if (!validPassword) {
+		throw new AppError(401, 'invalid_credentials', 'Password is incorrect');
+	}
+
+	await db.run('DELETE FROM users WHERE id = ?', [userId]);
 	return { ok: true };
 }
 

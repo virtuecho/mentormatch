@@ -1,10 +1,10 @@
 import { fail } from '@sveltejs/kit';
 import { cancelBooking, listBookings } from '@mentormatch/feature-bookings';
 import { AppError } from '@mentormatch/shared';
-import { handleApiError, requireDatabase, requireRole } from '$lib/server/http';
+import { handleApiError, requireDatabase, requireMember } from '$lib/server/http';
 
 export async function load({ locals }) {
-	const user = requireRole(locals, 'mentee');
+	const user = requireMember(locals);
 
 	return {
 		bookings: await listBookings(requireDatabase(locals), user.id, 'mentee')
@@ -13,7 +13,7 @@ export async function load({ locals }) {
 
 export const actions = {
 	cancel: async ({ request, locals }) => {
-		const user = requireRole(locals, 'mentee');
+		const user = requireMember(locals);
 		const form = await request.formData();
 		const bookingId = Number(form.get('bookingId'));
 

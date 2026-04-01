@@ -7,6 +7,6 @@
 	let { data, children } = $props();
 </script>
 
-<AppFrame navItems={data.navItems} currentPath={page.url.pathname}>
+<AppFrame navItems={data.navItems} currentPath={page.url.pathname} user={data.user}>
 	{@render children()}
 </AppFrame>

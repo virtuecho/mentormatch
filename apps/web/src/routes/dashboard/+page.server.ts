@@ -1,9 +1,9 @@
 import { listBookings } from '@mentormatch/feature-bookings';
 import { listMentors } from '@mentormatch/feature-mentors';
-import { requireDatabase, requireRole } from '$lib/server/http';
+import { requireDatabase, requireMember } from '$lib/server/http';
 
 export async function load({ locals, url }) {
-	const user = requireRole(locals, 'mentee');
+	const user = requireMember(locals);
 	const db = requireDatabase(locals);
 	const search = url.searchParams.get('q') ?? '';
 	const city = url.searchParams.get('city') ?? '';

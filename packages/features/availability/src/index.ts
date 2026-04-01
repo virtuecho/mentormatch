@@ -4,17 +4,39 @@ import { AppError, availabilityCreateSchema } from '@mentormatch/shared';
 export async function createAvailabilitySlot(db: DatabaseClient, mentorId: number, input: unknown) {
 	const payload = availabilityCreateSchema.parse(input);
 	const now = new Date().toISOString();
+	const existingSlot = await db.get<{ id: number }>(
+		`
+			SELECT id
+			FROM availability_slots
+			WHERE mentor_id = ? AND start_time = ?
+			LIMIT 1
+		`,
+		[mentorId, payload.startTime]
+	);
+
+	if (existingSlot) {
+		throw new AppError(
+			409,
+			'duplicate_availability_slot',
+			'You already have a slot at that exact time.'
+		);
+	}
+
 	const slotInsert = await db.run(
 		`
 			INSERT INTO availability_slots (
-				mentor_id, title, start_time, duration_mins, location_type, city, address,
-				max_participants, note, is_booked, created_at, updated_at
+				mentor_id, title, booking_mode, preset_topic, preset_description, start_time,
+				duration_mins, location_type, city, address, max_participants, note,
+				is_booked, created_at, updated_at
 			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
 		`,
 		[
 			mentorId,
 			payload.title,
+			payload.bookingMode,
+			payload.presetTopic ?? null,
+			payload.presetDescription ?? null,
 			payload.startTime,
 			payload.durationMins,
 			payload.locationType,
@@ -33,7 +55,20 @@ export async function createAvailabilitySlot(db: DatabaseClient, mentorId: numbe
 export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
 	return db.all(
 		`
-			SELECT id, title, start_time, duration_mins, location_type, city, address, max_participants, note, is_booked
+			SELECT
+				id,
+				title,
+				booking_mode,
+				preset_topic,
+				preset_description,
+				start_time,
+				duration_mins,
+				location_type,
+				city,
+				address,
+				max_participants,
+				note,
+				is_booked
 			FROM availability_slots
 			WHERE mentor_id = ?
 			ORDER BY start_time ASC
@@ -45,7 +80,20 @@ export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
 export async function getMentorAvailability(db: DatabaseClient, mentorId: number, currentUserId: number | null) {
 	const slots = await db.all<any>(
 		`
-			SELECT id, title, start_time, duration_mins, location_type, city, address, max_participants, note, is_booked
+			SELECT
+				id,
+				title,
+				booking_mode,
+				preset_topic,
+				preset_description,
+				start_time,
+				duration_mins,
+				location_type,
+				city,
+				address,
+				max_participants,
+				note,
+				is_booked
 			FROM availability_slots
 			WHERE mentor_id = ? AND is_booked = 0 AND start_time >= ?
 			ORDER BY start_time ASC
@@ -65,6 +113,9 @@ export async function getMentorAvailability(db: DatabaseClient, mentorId: number
 			maxParticipants: slot.max_participants,
 			note: slot.note,
 			isBooked: Boolean(slot.is_booked),
+			bookingMode: slot.booking_mode,
+			presetTopic: slot.preset_topic,
+			presetDescription: slot.preset_description,
 			isRequested: false
 		}));
 	}
@@ -91,6 +142,9 @@ export async function getMentorAvailability(db: DatabaseClient, mentorId: number
 		maxParticipants: slot.max_participants,
 		note: slot.note,
 		isBooked: Boolean(slot.is_booked),
+		bookingMode: slot.booking_mode,
+		presetTopic: slot.preset_topic,
+		presetDescription: slot.preset_description,
 		isRequested: requested.has(slot.id)
 	}));
 }
@@ -132,7 +186,20 @@ export async function deleteAvailabilitySlot(db: DatabaseClient, mentorId: numbe
 async function getAvailabilityById(db: DatabaseClient, slotId: number, mentorId: number) {
 	const slot = await db.get(
 		`
-			SELECT id, title, start_time, duration_mins, location_type, city, address, max_participants, note, is_booked
+			SELECT
+				id,
+				title,
+				booking_mode,
+				preset_topic,
+				preset_description,
+				start_time,
+				duration_mins,
+				location_type,
+				city,
+				address,
+				max_participants,
+				note,
+				is_booked
 			FROM availability_slots
 			WHERE id = ? AND mentor_id = ?
 			LIMIT 1

@@ -7,11 +7,11 @@
 <div class="page">
 	<PageHeader
 		eyebrow="Create account"
-		title="Start as a mentee or mentor"
-		description="Signup is now framed as part of the same application shell, ready to connect to Worker-side auth actions."
+		title="Create your MentorMatch account"
+		description="Create an account to browse mentors, book sessions, and manage everything in one place."
 	/>
 
-	<Panel title="Registration">
+	<Panel title="Create your account">
 		<form method="POST" class="split">
 			<div class="field">
 				<label for="name">Full name</label>
@@ -59,19 +59,13 @@
 					required
 				/>
 			</div>
-			<div class="field">
-				<label for="role">Starting role</label>
-				<select id="role" name="role">
-					<option value="mentee" selected={form?.role !== 'mentor'}>Mentee</option>
-					<option value="mentor" selected={form?.role === 'mentor'}>Mentor</option>
-				</select>
-			</div>
 			<div class="field checkbox-field">
 				<label class="checkbox-label" for="agreeToTerms">
 					<input id="agreeToTerms" name="agreeToTerms" type="checkbox" required />
 					<span>I agree to the terms of service and privacy policy</span>
 				</label>
 			</div>
+			<p class="helper-copy">You can apply to become a mentor later from your account settings.</p>
 			<div class="cta-row">
 				{#if form?.message}
 					<p class="form-error">{form.message}</p>
@@ -81,3 +75,10 @@
 		</form>
 	</Panel>
 </div>
+
+<style>
+	.helper-copy {
+		margin: 0;
+		color: #475569;
+	}
+</style>

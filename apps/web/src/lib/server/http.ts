@@ -1,5 +1,6 @@
 import { json, type Cookies } from '@sveltejs/kit';
 import { AppError, type UserRole } from '@mentormatch/shared';
+import { ZodError } from 'zod';
 
 export const SESSION_COOKIE_NAME = 'mentormatch_session';
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
@@ -38,6 +39,26 @@ export function requireRole(locals: App.Locals, role: UserRole) {
 	return user;
 }
 
+export function requireMember(locals: App.Locals) {
+	const user = requireUser(locals);
+
+	if (user.role === 'admin') {
+		throw new AppError(403, 'forbidden', 'Admin accounts cannot use member booking flows');
+	}
+
+	return user;
+}
+
+export function requireApprovedMentor(locals: App.Locals) {
+	const user = requireMember(locals);
+
+	if (!user.isMentorApproved) {
+		throw new AppError(403, 'mentor_approval_required', 'Mentor approval required');
+	}
+
+	return user;
+}
+
 function getSessionCookieOptions(url: URL) {
 	return {
 		path: '/',
@@ -68,4 +89,26 @@ export function handleApiError(error: unknown) {
 		{ ok: false, error: 'Internal server error', code: 'internal_server_error' },
 		{ status: 500 }
 	);
+}
+
+export function getFormError(error: unknown, fallbackMessage: string) {
+	if (error instanceof AppError) {
+		return {
+			status: error.status,
+			message: error.message
+		};
+	}
+
+	if (error instanceof ZodError) {
+		return {
+			status: 400,
+			message: error.issues[0]?.message ?? 'Please review the form fields and try again.'
+		};
+	}
+
+	console.error(error);
+	return {
+		status: 500,
+		message: fallbackMessage
+	};
 }
