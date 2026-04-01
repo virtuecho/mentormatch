@@ -18,7 +18,7 @@
 	/>
 
 	<div class="cta-row">
-		<a class="button secondary" href={resolve('/admin/mentors')}>Manage mentors</a>
+		<a class="button secondary" href={resolve('/admin/mentors')}>Manage users</a>
 		<a class="button secondary" href={resolve('/admin/slots')}>Manage slots</a>
 	</div>
 

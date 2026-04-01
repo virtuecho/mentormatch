@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import {
 		DEFAULT_AVATAR,
 		type EducationRecord,
@@ -169,11 +170,21 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="Profile"
-		title={data.profile.profile.fullName}
-		description={data.profile.profile.bio ??
-			'Keep your profile up to date so people know how you can help.'}
+		eyebrow={data.isAdminManagingUser ? 'Admin' : 'Profile'}
+		title={data.isAdminManagingUser
+			? `Manage ${data.profile.profile.fullName}`
+			: data.profile.profile.fullName}
+		description={data.isAdminManagingUser
+			? 'Update this user’s public profile information. Login email and password remain private to the user.'
+			: (data.profile.profile.bio ??
+				'Keep your profile up to date so people know how you can help.')}
 	/>
+
+	{#if data.isAdminManagingUser}
+		<div class="cta-row">
+			<a class="button secondary" href={resolve('/admin/mentors')}>Back to user management</a>
+		</div>
+	{/if}
 
 	<div class="split">
 		<Panel title="Profile at a glance">
@@ -195,6 +206,11 @@
 				<p><strong>Role:</strong> {data.profile.role}</p>
 				<p><strong>Location:</strong> {data.profile.profile.location ?? 'Not set'}</p>
 				<p><strong>Phone:</strong> {data.profile.profile.phone ?? 'Not set'}</p>
+				{#if data.canManageAsAdmin}
+					<p class="subtle">
+						Admins can edit profile fields here, but not login email or password.
+					</p>
+				{/if}
 				<TagList tags={data.profile.profile.mentorSkills} />
 			</div>
 		</Panel>
@@ -205,10 +221,16 @@
 					Add your education, experience, and links so mentors and mentees can understand your
 					background.
 				</p>
-				<p>
-					Your mentor application can reuse this profile, so keeping it complete here saves you work
-					later.
-				</p>
+				{#if data.canManageAsAdmin}
+					<p>
+						Admin edits here are limited to public profile information and mentor-related details.
+					</p>
+				{:else}
+					<p>
+						Your mentor application can reuse this profile, so keeping it complete here saves you
+						work later.
+					</p>
+				{/if}
 			</div>
 		</Panel>
 	</div>

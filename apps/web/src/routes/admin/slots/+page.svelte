@@ -15,7 +15,7 @@
 
 	<div class="cta-row">
 		<a class="button secondary" href={resolve('/admin/review')}>Review applications</a>
-		<a class="button secondary" href={resolve('/admin/mentors')}>Manage mentors</a>
+		<a class="button secondary" href={resolve('/admin/mentors')}>Manage users</a>
 		{#if data.selectedMentorId}
 			<a class="button secondary" href={resolve('/admin/slots')}>Clear mentor filter</a>
 		{/if}

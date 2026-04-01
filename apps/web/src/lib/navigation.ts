@@ -38,7 +38,7 @@ const pendingMentorNavigation = [
 const adminNavigation = [
 	{ href: '/', label: 'Home' },
 	{ href: '/admin/review', label: 'Review Applications' },
-	{ href: '/admin/mentors', label: 'Manage Mentors' },
+	{ href: '/admin/mentors', label: 'Manage Users' },
 	{ href: '/admin/slots', label: 'Manage Slots' },
 	{ href: '/profile', label: 'Profile' },
 	{ href: '/settings', label: 'Settings' }

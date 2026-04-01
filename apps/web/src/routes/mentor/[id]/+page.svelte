@@ -54,7 +54,7 @@
 				<p><strong>Phone:</strong> {data.mentor.phone ?? 'Not provided'}</p>
 				<div class="cta-row">
 					{#if data.isAdminView}
-						<a class="button secondary" href={resolve('/admin/mentors')}>Back to mentors</a>
+						<a class="button secondary" href={resolve('/admin/mentors')}>Back to users</a>
 					{:else}
 						<a class="button secondary" href={resolve('/dashboard')}>Back to dashboard</a>
 					{/if}

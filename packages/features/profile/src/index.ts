@@ -42,6 +42,21 @@ type MentorRequestListRow = {
   profile_image_url: string | null;
 };
 
+type AdminUserListRow = {
+  id: number;
+  email: string;
+  role: UserRole;
+  is_mentor_approved: number;
+  full_name: string;
+  profile_image_url: string | null;
+  location: string | null;
+  latest_position: string | null;
+  latest_company: string | null;
+  latest_expertise_json: string | null;
+  skill_names: string | null;
+  latest_request_status: RequestStatus | null;
+};
+
 function mapSessionUser(row: ProfileRow): SessionUser {
   return {
     id: row.id,
@@ -383,6 +398,81 @@ export async function listMentorRequests(db: DatabaseClient) {
   }));
 }
 
+export async function listUsersForAdmin(db: DatabaseClient) {
+  const users = await db.all<AdminUserListRow>(
+    `
+			SELECT
+				u.id,
+				u.email,
+				u.role,
+				u.is_mentor_approved,
+				p.full_name,
+				p.profile_image_url,
+				p.location,
+				(
+					SELECT e.position
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_position,
+				(
+					SELECT e.company
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_company,
+				(
+					SELECT e.expertise_json
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_expertise_json,
+				(
+					SELECT GROUP_CONCAT(ms.skill_name, ',')
+					FROM mentor_skills ms
+					WHERE ms.mentor_id = u.id
+				) AS skill_names,
+				(
+					SELECT mr.status
+					FROM mentor_requests mr
+					WHERE mr.user_id = u.id
+					ORDER BY mr.submitted_at DESC
+					LIMIT 1
+				) AS latest_request_status
+			FROM users u
+			JOIN profiles p ON p.user_id = u.id
+			ORDER BY
+				CASE u.role
+					WHEN 'admin' THEN 0
+					WHEN 'mentor' THEN 1
+					ELSE 2
+				END,
+				p.full_name ASC,
+				u.id ASC
+		`,
+  );
+
+  return users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    isMentorApproved: Boolean(user.is_mentor_approved),
+    fullName: user.full_name,
+    profileImageUrl: ensureAvatar(user.profile_image_url),
+    location: user.location,
+    position: user.latest_position ?? (user.role === "admin" ? "Admin" : "Member"),
+    company: user.latest_company ?? "MentorMatch",
+    mentorSkills: user.skill_names
+      ? user.skill_names.split(",").filter(Boolean)
+      : [],
+    expertise: parseJsonArray(user.latest_expertise_json),
+    latestMentorRequestStatus: user.latest_request_status,
+  }));
+}
+
 export async function reviewMentorRequest(
   db: DatabaseClient,
   requestId: number,
@@ -437,6 +527,63 @@ export async function reviewMentorRequest(
   return {
     status: payload.status,
   };
+}
+
+export async function approveUserAsMentor(db: DatabaseClient, userId: number) {
+  const current = await db.get<{ role: UserRole; is_mentor_approved: number }>(
+    "SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1",
+    [userId],
+  );
+
+  if (!current) {
+    throw new AppError(404, "user_not_found", "User not found");
+  }
+
+  if (current.role === "admin") {
+    throw new AppError(
+      403,
+      "admin_role_locked",
+      "Admin accounts cannot be changed through mentor moderation",
+    );
+  }
+
+  if (current.role === "mentor" && current.is_mentor_approved) {
+    throw new AppError(
+      409,
+      "mentor_already_active",
+      "This user is already an approved mentor.",
+    );
+  }
+
+  const now = new Date().toISOString();
+  await db.run(
+    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
+    ["mentor", 1, now, userId],
+  );
+  await db.run(
+    "UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE user_id = ? AND status = ?",
+    ["approved", now, userId, "pending"],
+  );
+
+  return { ok: true };
+}
+
+export async function adminUpdateUser(
+  db: DatabaseClient,
+  userId: number,
+  input: unknown,
+) {
+  const payload = profileUpdateSchema.parse(input);
+  const current = await db.get<{ id: number }>(
+    "SELECT id FROM users WHERE id = ? LIMIT 1",
+    [userId],
+  );
+
+  if (!current) {
+    throw new AppError(404, "user_not_found", "User not found");
+  }
+
+  return updateProfile(db, userId, payload);
 }
 
 export async function toggleRole(
