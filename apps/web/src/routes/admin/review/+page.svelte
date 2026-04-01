@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 
 	let { data, form } = $props();
@@ -10,6 +11,11 @@
 		title="Review mentor applications"
 		description="MentorMatch team admins approve or reject mentor applications before members can start mentoring."
 	/>
+
+	<div class="cta-row">
+		<a class="button secondary" href={resolve('/admin/mentors')}>Manage mentors</a>
+		<a class="button secondary" href={resolve('/admin/slots')}>Manage slots</a>
+	</div>
 
 	{#if form?.message}
 		<p class:form-success={form?.success} class="form-error">{form.message}</p>
@@ -52,8 +58,15 @@
 							<p>{request.note}</p>
 						{/if}
 
-						{#if request.status === 'pending'}
-							<div class="cta-row">
+						<div class="cta-row">
+							<a
+								class="button secondary"
+								href={resolve('/members/[id]', { id: String(request.user.id) })}
+							>
+								View applicant profile
+							</a>
+
+							{#if request.status === 'pending'}
 								<form method="POST" action="?/review">
 									<input type="hidden" name="requestId" value={request.id} />
 									<input type="hidden" name="status" value="approved" />
@@ -64,8 +77,10 @@
 									<input type="hidden" name="status" value="rejected" />
 									<button class="button secondary" type="submit">Reject</button>
 								</form>
-							</div>
-						{:else}
+							{/if}
+						</div>
+
+						{#if request.status !== 'pending'}
 							<p>
 								Reviewed {request.reviewedAt
 									? new Date(request.reviewedAt).toLocaleString()

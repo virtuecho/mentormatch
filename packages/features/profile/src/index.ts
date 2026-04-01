@@ -480,3 +480,42 @@ export async function toggleRole(
 
   return { role: nextRole };
 }
+
+export async function revokeMentorApproval(db: DatabaseClient, userId: number) {
+  const current = await db.get<{ role: UserRole; is_mentor_approved: number }>(
+    "SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1",
+    [userId],
+  );
+
+  if (!current) {
+    throw new AppError(404, "user_not_found", "User not found");
+  }
+
+  if (current.role === "admin") {
+    throw new AppError(
+      403,
+      "admin_role_locked",
+      "Admin accounts cannot be changed through mentor moderation",
+    );
+  }
+
+  if (current.role !== "mentor" || !current.is_mentor_approved) {
+    throw new AppError(
+      409,
+      "mentor_not_active",
+      "This user is not currently an approved mentor.",
+    );
+  }
+
+  const now = new Date().toISOString();
+  await db.run(
+    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
+    ["mentee", 0, now, userId],
+  );
+  await db.run(
+    "DELETE FROM availability_slots WHERE mentor_id = ? AND start_time >= ?",
+    [userId, now],
+  );
+
+  return { ok: true };
+}

@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { createBookingSeries } from '@mentormatch/feature-bookings';
 import { getMentorProfile } from '@mentormatch/feature-mentors';
 import { AppError } from '@mentormatch/shared';
-import { handleApiError, requireDatabase, requireMember } from '$lib/server/http';
+import { handleApiError, requireDatabase, requireMember, requireUser } from '$lib/server/http';
 
 type MentorAvailabilitySlot = {
 	id: number;
@@ -122,7 +122,7 @@ function groupAvailabilitySeries(availability: MentorAvailabilitySlot[]) {
 }
 
 export async function load({ params, locals, url }) {
-	const user = requireMember(locals);
+	const user = requireUser(locals);
 	const mentor = await getMentorProfile(requireDatabase(locals), Number(params.id), user.id);
 	const filters = {
 		date: url.searchParams.get('date') ?? '',
@@ -139,6 +139,8 @@ export async function load({ params, locals, url }) {
 			availability: filteredAvailability
 		},
 		availabilityGroups: groupAvailabilitySeries(filteredAvailability),
+		backHref: user.role === 'admin' ? '/admin/mentors' : '/dashboard',
+		backLabel: user.role === 'admin' ? 'Back to mentors' : 'Back to dashboard',
 		filters,
 		viewerCanBook: user.role !== 'admin'
 	};

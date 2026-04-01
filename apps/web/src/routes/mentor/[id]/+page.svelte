@@ -53,7 +53,7 @@
 				<p><strong>City:</strong> {data.mentor.location ?? 'Remote'}</p>
 				<p><strong>Phone:</strong> {data.mentor.phone ?? 'Not provided'}</p>
 				<div class="cta-row">
-					<a class="button secondary" href={resolve('/dashboard')}>Back to dashboard</a>
+					<a class="button secondary" href={data.backHref}>{data.backLabel}</a>
 				</div>
 				<TagList tags={data.mentor.mentorSkills} />
 				<p>{data.mentor.bio ?? 'This mentor has not filled out a public bio yet.'}</p>

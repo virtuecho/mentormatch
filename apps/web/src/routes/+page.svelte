@@ -34,8 +34,10 @@
 			</div>
 			{#if data.user?.role === 'admin'}
 				<p class="subtle">
-					Admin mode: open the mentor approval queue from
-					<a href={resolve('/admin/review')}>Review applications</a>.
+					Admin mode:
+					<a href={resolve('/admin/review')}>Review applications</a>,
+					<a href={resolve('/admin/mentors')}>manage mentors</a>, or
+					<a href={resolve('/admin/slots')}>inspect slots</a>.
 				</p>
 			{:else if data.user?.isMentorApproved}
 				<p class="subtle">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DatabaseClient, QueryParams, QueryResult } from "@mentormatch/db";
 import {
+  revokeMentorApproval,
   reviewMentorRequest,
   submitMentorRequest,
   toggleRole,
@@ -193,6 +194,10 @@ class ProfileTestDatabase implements DatabaseClient {
       return { changes: 1, lastRowId: null };
     }
 
+    if (sql.includes("DELETE FROM availability_slots WHERE mentor_id = ?")) {
+      return { changes: 0, lastRowId: null };
+    }
+
     throw new Error(`Unexpected run query: ${sql}`);
   }
 }
@@ -327,6 +332,23 @@ describe("feature-profile", () => {
     ).rejects.toMatchObject({
       status: 409,
       code: "mentor_already_approved",
+    });
+  });
+
+  it("lets admins revoke an approved mentor back to mentee mode", async () => {
+    const db = new ProfileTestDatabase();
+
+    await submitMentorRequest(db, 1, {
+      documentUrl: "https://example.com/cv.pdf",
+      note: "Ready to help with interviews.",
+    });
+    await reviewMentorRequest(db, 1, { status: "approved" });
+
+    await expect(revokeMentorApproval(db, 1)).resolves.toEqual({ ok: true });
+
+    await expect(toggleRole(db, 1, { role: "mentor" })).rejects.toMatchObject({
+      status: 403,
+      code: "mentor_approval_required",
     });
   });
 });
