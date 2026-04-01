@@ -313,6 +313,30 @@ export function serializeZonedDateTime(
   return new Date(guess).toISOString();
 }
 
+export function formatDateTimeLocalInTimeZone(
+  value: string | null | undefined,
+  timeZone: string | null | undefined,
+): string | null {
+  if (typeof value !== "string" || typeof timeZone !== "string") {
+    return null;
+  }
+
+  const normalizedTimeZone = timeZone.trim();
+  if (!normalizedTimeZone || !isValidTimeZone(normalizedTimeZone)) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+
+  const parts = getTimeZoneDateParts(timestamp, normalizedTimeZone);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(
+    parts.day,
+  ).padStart(2, "0")}T${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
+}
+
 const httpUrlSchema = z.url().refine((value) => isValidHttpUrl(value), {
   message: "Please enter a valid URL",
 });
@@ -406,7 +430,12 @@ export const availabilityCreateSchema = z
     locationType: z.enum(LOCATION_TYPES).default("in_person"),
     city: z.string().trim().min(1).max(120),
     address: z.string().trim().min(1).max(255),
-    maxParticipants: z.coerce.number().int().min(1).max(20).default(2),
+    maxParticipants: z.coerce
+      .number()
+      .int()
+      .min(1, "Max participants must be at least 1")
+      .max(20, "Max participants must be 20 or fewer")
+      .default(2),
     note: optionalNullableString,
     bookingMode: z.enum(SLOT_BOOKING_MODES).default("open"),
     presetTopic: z.string().trim().max(255).nullable().optional(),

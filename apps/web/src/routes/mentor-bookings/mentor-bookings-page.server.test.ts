@@ -29,6 +29,20 @@ class MentorBookingsTestDatabase implements DatabaseClient {
 	async get<T>(sql: string, params: QueryParams = []): Promise<T | null> {
 		if (
 			sql.includes('FROM availability_slots') &&
+			sql.includes('mentor_id = ? AND start_time = ? AND id != ?')
+		) {
+			const mentorId = Number(params[0]);
+			const startTime = String(params[1]);
+			const slotId = Number(params[2]);
+			const slot = this.slots.find(
+				(item) => item.mentorId === mentorId && item.startTime === startTime && item.id !== slotId
+			);
+
+			return slot ? ({ id: slot.id } as T) : null;
+		}
+
+		if (
+			sql.includes('FROM availability_slots') &&
 			sql.includes('mentor_id = ? AND start_time = ?')
 		) {
 			const mentorId = Number(params[0]);
@@ -62,6 +76,10 @@ class MentorBookingsTestDatabase implements DatabaseClient {
 						is_booked: 0
 					} as T)
 				: null;
+		}
+
+		if (sql.includes('FROM bookings') && sql.includes("status IN ('pending', 'accepted')")) {
+			return null;
 		}
 
 		throw new Error(`Unexpected get query: ${sql}`);
@@ -132,6 +150,46 @@ class MentorBookingsTestDatabase implements DatabaseClient {
 			};
 		}
 
+		if (sql.includes('UPDATE availability_slots')) {
+			const [
+				title,
+				bookingMode,
+				presetTopic,
+				presetDescription,
+				startTime,
+				durationMins,
+				locationType,
+				city,
+				address,
+				maxParticipants,
+				note,
+				,
+				slotId,
+				mentorId
+			] = params;
+			const slot = this.slots.find(
+				(item) => item.id === Number(slotId) && item.mentorId === Number(mentorId)
+			);
+
+			if (!slot) {
+				return { changes: 0, lastRowId: null };
+			}
+
+			slot.title = String(title);
+			slot.bookingMode = String(bookingMode) === 'preset' ? 'preset' : 'open';
+			slot.presetTopic = presetTopic == null ? null : String(presetTopic);
+			slot.presetDescription = presetDescription == null ? null : String(presetDescription);
+			slot.startTime = String(startTime);
+			slot.durationMins = Number(durationMins);
+			slot.locationType = String(locationType);
+			slot.city = String(city);
+			slot.address = String(address);
+			slot.maxParticipants = Number(maxParticipants);
+			slot.note = note == null ? null : String(note);
+
+			return { changes: 1, lastRowId: null };
+		}
+
 		throw new Error(`Unexpected run query: ${sql}`);
 	}
 }
@@ -156,6 +214,7 @@ function createRequest(fields: Record<string, string>) {
 	const baseFields = {
 		title: 'Career planning session',
 		bookingMode: 'open',
+		repeatRule: 'once',
 		startTimeLocal: '2026-03-31T09:30',
 		timeZone: 'Asia/Shanghai',
 		durationMins: '60',
@@ -187,7 +246,7 @@ describe('mentor bookings page actions', () => {
 
 		expect(result).toMatchObject({
 			success: true,
-			message: 'Availability slot created'
+			message: 'Session created'
 		});
 		expect(db.slots).toHaveLength(1);
 		expect(db.slots[0]?.startTime).toBe(
@@ -203,7 +262,7 @@ describe('mentor bookings page actions', () => {
 				bookingMode: 'preset',
 				presetTopic: 'Weekly career clinic',
 				presetDescription: 'We will review one real career blocker each week.',
-				repeatWeekly: 'weekly',
+				repeatRule: 'weekly',
 				repeatCount: '3'
 			}),
 			locals: createLocals(db)
@@ -211,7 +270,7 @@ describe('mentor bookings page actions', () => {
 
 		expect(result).toMatchObject({
 			success: true,
-			message: '3 weekly availability slots created'
+			message: '3 recurring sessions created'
 		});
 		expect(db.slots).toHaveLength(3);
 		expect(db.slots.map((slot) => slot.startTime)).toEqual([
@@ -221,6 +280,72 @@ describe('mentor bookings page actions', () => {
 		]);
 		expect(db.slots.every((slot) => slot.bookingMode === 'preset')).toBe(true);
 		expect(db.slots.every((slot) => slot.presetTopic === 'Weekly career clinic')).toBe(true);
+	});
+
+	it('creates weekday recurring slots by skipping weekends', async () => {
+		const db = new MentorBookingsTestDatabase();
+
+		const result = await actions.createSlot({
+			request: createRequest({
+				startTimeLocal: '2026-04-03T09:30',
+				repeatRule: 'weekdays',
+				repeatCount: '3'
+			}),
+			locals: createLocals(db)
+		} as unknown as CreateSlotActionEvent);
+
+		expect(result).toMatchObject({
+			success: true,
+			message: '3 recurring sessions created'
+		});
+		expect(db.slots.map((slot) => slot.startTime)).toEqual([
+			serializeZonedDateTime('2026-04-03T09:30', 'Asia/Shanghai'),
+			serializeZonedDateTime('2026-04-06T09:30', 'Asia/Shanghai'),
+			serializeZonedDateTime('2026-04-07T09:30', 'Asia/Shanghai')
+		]);
+	});
+
+	it('updates a single published slot without touching the rest of the series', async () => {
+		const db = new MentorBookingsTestDatabase();
+
+		await actions.createSlot({
+			request: createRequest({
+				repeatRule: 'weekly',
+				repeatCount: '2'
+			}),
+			locals: createLocals(db)
+		} as unknown as CreateSlotActionEvent);
+
+		const result = await actions.updateSlot({
+			request: createRequest({
+				slotId: '2',
+				title: 'Adjusted follow-up session',
+				startTimeLocal: '2026-04-08T11:00',
+				timeZone: 'Asia/Shanghai',
+				durationMins: '45',
+				maxParticipants: '4',
+				city: 'Beijing',
+				address: 'Room 301'
+			}),
+			locals: createLocals(db)
+		} as unknown as Parameters<(typeof actions)['updateSlot']>[0]);
+
+		expect(result).toMatchObject({
+			success: true,
+			message: 'Session updated'
+		});
+		expect(db.slots).toHaveLength(2);
+		expect(db.slots[0]?.startTime).toBe(
+			serializeZonedDateTime('2026-03-31T09:30', 'Asia/Shanghai')
+		);
+		expect(db.slots[1]).toMatchObject({
+			title: 'Adjusted follow-up session',
+			startTime: serializeZonedDateTime('2026-04-08T11:00', 'Asia/Shanghai'),
+			durationMins: 45,
+			maxParticipants: 4,
+			city: 'Beijing',
+			address: 'Room 301'
+		});
 	});
 
 	it('returns a 400 failure when the submitted time zone is invalid', async () => {

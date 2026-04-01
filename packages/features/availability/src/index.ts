@@ -60,6 +60,102 @@ export async function createAvailabilitySlot(
   return getAvailabilityById(db, slotInsert.lastRowId ?? 0, mentorId);
 }
 
+export async function updateAvailabilitySlot(
+  db: DatabaseClient,
+  mentorId: number,
+  slotId: number,
+  input: unknown,
+) {
+  const payload = availabilityCreateSchema.parse(input);
+  const now = new Date().toISOString();
+  const slot = await db.get<{ id: number }>(
+    "SELECT id FROM availability_slots WHERE id = ? AND mentor_id = ? LIMIT 1",
+    [slotId, mentorId],
+  );
+
+  if (!slot) {
+    throw new AppError(
+      404,
+      "availability_not_found",
+      "Availability slot not found",
+    );
+  }
+
+  const activeBooking = await db.get<{ id: number }>(
+    `
+			SELECT id
+			FROM bookings
+			WHERE availability_slot_id = ? AND status IN ('pending', 'accepted')
+			LIMIT 1
+		`,
+    [slotId],
+  );
+
+  if (activeBooking) {
+    throw new AppError(
+      409,
+      "active_booking_exists",
+      "Resolve pending or accepted requests before editing this session.",
+    );
+  }
+
+  const existingSlot = await db.get<{ id: number }>(
+    `
+			SELECT id
+			FROM availability_slots
+			WHERE mentor_id = ? AND start_time = ? AND id != ?
+			LIMIT 1
+		`,
+    [mentorId, payload.startTime, slotId],
+  );
+
+  if (existingSlot) {
+    throw new AppError(
+      409,
+      "duplicate_availability_slot",
+      "You already have a slot at that exact time.",
+    );
+  }
+
+  await db.run(
+    `
+			UPDATE availability_slots
+			SET
+				title = ?,
+				booking_mode = ?,
+				preset_topic = ?,
+				preset_description = ?,
+				start_time = ?,
+				duration_mins = ?,
+				location_type = ?,
+				city = ?,
+				address = ?,
+				max_participants = ?,
+				note = ?,
+				updated_at = ?
+			WHERE id = ? AND mentor_id = ?
+		`,
+    [
+      payload.title,
+      payload.bookingMode,
+      payload.presetTopic ?? null,
+      payload.presetDescription ?? null,
+      payload.startTime,
+      payload.durationMins,
+      payload.locationType,
+      payload.city,
+      payload.address,
+      payload.maxParticipants,
+      payload.note ?? null,
+      now,
+      slotId,
+      mentorId,
+    ],
+  );
+
+  return getAvailabilityById(db, slotId, mentorId);
+}
+
 export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
   return db.all(
     `
