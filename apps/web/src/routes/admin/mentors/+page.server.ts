@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { listMentors } from '@mentormatch/feature-mentors';
+import { listApprovedMentorsForAdmin } from '@mentormatch/feature-mentors';
 import { revokeMentorApproval } from '@mentormatch/feature-profile';
 import { AppError } from '@mentormatch/shared';
 import { requireDatabase, requireRole } from '$lib/server/http';
@@ -8,12 +8,7 @@ export async function load({ locals }) {
 	requireRole(locals, 'admin');
 
 	return {
-		mentors: await listMentors(requireDatabase(locals), null, {
-			q: '',
-			city: '',
-			tag: '',
-			limit: 200
-		})
+		mentors: await listApprovedMentorsForAdmin(requireDatabase(locals), 200)
 	};
 }
 

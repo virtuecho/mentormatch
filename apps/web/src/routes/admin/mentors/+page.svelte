@@ -49,9 +49,10 @@
 							<a class="button secondary" href={resolve('/mentor/[id]', { id: String(mentor.id) })}>
 								View profile
 							</a>
-							<a class="button secondary" href={resolve('/admin/slots') + `?mentorId=${mentor.id}`}>
-								View slots
-							</a>
+							<form method="GET" action={resolve('/admin/slots')}>
+								<input type="hidden" name="mentorId" value={mentor.id} />
+								<button class="button secondary" type="submit">View slots</button>
+							</form>
 							<form method="POST" action="?/revokeMentor">
 								<input type="hidden" name="mentorId" value={mentor.id} />
 								<button class="button secondary" type="submit">Revoke mentor</button>

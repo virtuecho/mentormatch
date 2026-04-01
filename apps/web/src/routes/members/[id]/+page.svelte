@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { PageHeader, Panel, TagList } from '@mentormatch/ui';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
@@ -32,7 +33,11 @@
 				<p><strong>Mentor approved:</strong> {data.member.isMentorApproved ? 'Yes' : 'No'}</p>
 				<TagList tags={data.member.profile.mentorSkills} />
 				<div class="cta-row">
-					<a class="button secondary" href={data.backHref}>{data.backLabel}</a>
+					{#if data.isAdminView}
+						<a class="button secondary" href={resolve('/admin/review')}>Back to review queue</a>
+					{:else}
+						<a class="button secondary" href={resolve('/mentor-bookings')}>Back to requests</a>
+					{/if}
 				</div>
 			</div>
 		</Panel>

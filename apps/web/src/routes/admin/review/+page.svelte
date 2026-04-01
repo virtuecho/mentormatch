@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel } from '@mentormatch/ui';
+	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data, form } = $props();
+
+	function formatStatus(status: string) {
+		return status.charAt(0).toUpperCase() + status.slice(1);
+	}
 </script>
 
 <div class="page">
@@ -34,12 +39,19 @@
 				<Panel>
 					<div class="detail-card">
 						<div class="booking-row">
-							<div>
-								<h3>{request.user.fullName}</h3>
-								<p>{request.user.email}</p>
-								<p>Submitted {new Date(request.submittedAt).toLocaleString()}</p>
+							<div class="review-request-header">
+								<ProfileAvatar
+									name={request.user.fullName}
+									src={request.user.profileImageUrl}
+									size="lg"
+								/>
+								<div>
+									<h3>{request.user.fullName}</h3>
+									<p>{request.user.email}</p>
+									<p>Submitted {new Date(request.submittedAt).toLocaleString()}</p>
+								</div>
 							</div>
-							<span class={`status ${request.status}`}>{request.status}</span>
+							<span class={`status ${request.status}`}>{formatStatus(request.status)}</span>
 						</div>
 
 						<p>
@@ -93,3 +105,27 @@
 		{/if}
 	</section>
 </div>
+
+<style>
+	.review-request-header {
+		display: flex;
+		gap: 1rem;
+		align-items: center;
+	}
+
+	.review-request-header h3,
+	.review-request-header p {
+		margin: 0;
+	}
+
+	.review-request-header > div {
+		display: grid;
+		gap: 0.3rem;
+	}
+
+	@media (max-width: 640px) {
+		.review-request-header {
+			align-items: flex-start;
+		}
+	}
+</style>

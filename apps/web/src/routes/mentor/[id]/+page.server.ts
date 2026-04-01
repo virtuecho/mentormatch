@@ -123,6 +123,7 @@ function groupAvailabilitySeries(availability: MentorAvailabilitySlot[]) {
 
 export async function load({ params, locals, url }) {
 	const user = requireUser(locals);
+	const isAdminView = user.role === 'admin';
 	const mentor = await getMentorProfile(requireDatabase(locals), Number(params.id), user.id);
 	const filters = {
 		date: url.searchParams.get('date') ?? '',
@@ -139,8 +140,7 @@ export async function load({ params, locals, url }) {
 			availability: filteredAvailability
 		},
 		availabilityGroups: groupAvailabilitySeries(filteredAvailability),
-		backHref: user.role === 'admin' ? '/admin/mentors' : '/dashboard',
-		backLabel: user.role === 'admin' ? 'Back to mentors' : 'Back to dashboard',
+		isAdminView,
 		filters,
 		viewerCanBook: user.role !== 'admin'
 	};

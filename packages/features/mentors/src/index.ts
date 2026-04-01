@@ -17,6 +17,21 @@ type MentorCardRow = {
   skill_names: string | null;
 };
 
+function mapMentorCard(row: MentorCardRow) {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    profileImageUrl: ensureAvatar(row.profile_image_url),
+    location: row.location,
+    position: row.latest_position ?? "Mentor",
+    company: row.latest_company ?? "MentorMatch",
+    mentorSkills: row.skill_names
+      ? row.skill_names.split(",").filter(Boolean)
+      : [],
+    expertise: parseJsonArray(row.latest_expertise_json),
+  };
+}
+
 export async function listMentors(
   db: DatabaseClient,
   currentUserId: number | null,
@@ -85,18 +100,57 @@ export async function listMentors(
     ],
   );
 
-  return rows.map((row) => ({
-    id: row.id,
-    fullName: row.full_name,
-    profileImageUrl: ensureAvatar(row.profile_image_url),
-    location: row.location,
-    position: row.latest_position ?? "Mentor",
-    company: row.latest_company ?? "MentorMatch",
-    mentorSkills: row.skill_names
-      ? row.skill_names.split(",").filter(Boolean)
-      : [],
-    expertise: parseJsonArray(row.latest_expertise_json),
-  }));
+  return rows.map(mapMentorCard);
+}
+
+export async function listApprovedMentorsForAdmin(
+  db: DatabaseClient,
+  limit = 200,
+) {
+  const rows = await db.all<MentorCardRow>(
+    `
+			SELECT
+				u.id,
+				p.full_name,
+				p.profile_image_url,
+				p.location,
+				(
+					SELECT e.position
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_position,
+				(
+					SELECT e.company
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_company,
+				(
+					SELECT e.expertise_json
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_expertise_json,
+				(
+					SELECT GROUP_CONCAT(ms.skill_name, ',')
+					FROM mentor_skills ms
+					WHERE ms.mentor_id = u.id
+				) AS skill_names
+			FROM users u
+			JOIN profiles p ON p.user_id = u.id
+			WHERE u.role = 'mentor'
+				AND u.is_mentor_approved = 1
+			ORDER BY p.full_name ASC
+			LIMIT ?
+		`,
+    [Math.max(1, Math.min(limit, 500))],
+  );
+
+  return rows.map(mapMentorCard);
 }
 
 export async function getMentorProfile(

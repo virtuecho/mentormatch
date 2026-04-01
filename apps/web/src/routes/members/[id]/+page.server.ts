@@ -3,10 +3,10 @@ import { requireDatabase, requireUser } from '$lib/server/http';
 
 export async function load({ params, locals }) {
 	const user = requireUser(locals);
+	const isAdminView = user.role === 'admin';
 
 	return {
 		member: await getProfile(requireDatabase(locals), Number(params.id)),
-		backHref: user.role === 'admin' ? '/admin/review' : '/mentor-bookings',
-		backLabel: user.role === 'admin' ? 'Back to review queue' : 'Back to requests'
+		isAdminView
 	};
 }
