@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data, form } = $props();
-
-	function formatStatus(status: string) {
-		return status.charAt(0).toUpperCase() + status.slice(1);
-	}
 </script>
 
 <div class="page">
@@ -51,7 +48,7 @@
 									<p>Submitted {new Date(request.submittedAt).toLocaleString()}</p>
 								</div>
 							</div>
-							<span class={`status ${request.status}`}>{formatStatus(request.status)}</span>
+							<span class={`status ${request.status}`}>{formatLabel(request.status)}</span>
 						</div>
 
 						<p>

@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { AppError } from '@mentormatch/shared';
+import { AppError, formatLabel } from '@mentormatch/shared';
 import { listMentorRequests, reviewMentorRequest } from '@mentormatch/feature-profile';
 import { requireDatabase, requireRole } from '$lib/server/http';
 
@@ -22,7 +22,7 @@ export const actions = {
 			const result = await reviewMentorRequest(requireDatabase(locals), requestId, { status });
 			return {
 				success: true,
-				message: `Application ${result.status}.`
+				message: `Application ${formatLabel(result.status)}.`
 			};
 		} catch (error) {
 			if (error instanceof AppError) {

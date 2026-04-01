@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { formatDateTimeLocalInTimeZone } from '@mentormatch/shared';
+	import { formatDateTimeLocalInTimeZone, formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
@@ -413,7 +413,9 @@
 					<article class="detail-card request-card">
 						<div class="booking-row">
 							<div class="stack">
-								<span class={`status ${booking.status.toLowerCase()}`}>{booking.status}</span>
+								<span class={`status ${booking.status.toLowerCase()}`}>
+									{formatLabel(booking.status)}
+								</span>
 								<h3>{booking.topic}</h3>
 								<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
 								<p>{booking.slot.city} · {booking.slot.address}</p>

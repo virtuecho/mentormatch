@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { changePassword, deleteAccount } from '@mentormatch/feature-auth';
-import { AppError } from '@mentormatch/shared';
+import { AppError, formatLabel } from '@mentormatch/shared';
 import { getProfile, toggleRole } from '@mentormatch/feature-profile';
 import { clearSessionCookie, requireDatabase, requireUser } from '$lib/server/http';
 
@@ -25,7 +25,7 @@ export const actions = {
 			return {
 				section: 'role',
 				success: true,
-				message: `You are now in ${result.role} mode.`,
+				message: `You are now in ${formatLabel(result.role)} mode.`,
 				role: result.role
 			};
 		} catch (error) {

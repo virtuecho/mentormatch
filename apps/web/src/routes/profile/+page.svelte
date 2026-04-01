@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import {
 		DEFAULT_AVATAR,
+		formatLabel,
 		type EducationRecord,
 		type ExperienceRecord,
 		type RecordStatus
@@ -103,7 +104,7 @@
 		return records
 			.filter((record) => record.university.trim() || record.degree.trim() || record.major.trim())
 			.map((record) => ({
-				id: record.id ?? 0,
+				...(record.id ? { id: record.id } : {}),
 				university: record.university.trim(),
 				degree: record.degree.trim(),
 				major: record.major.trim(),
@@ -119,7 +120,7 @@
 		return records
 			.filter((record) => record.company.trim() || record.position.trim())
 			.map((record) => ({
-				id: record.id ?? 0,
+				...(record.id ? { id: record.id } : {}),
 				company: record.company.trim(),
 				position: record.position.trim(),
 				industry: record.industry.trim() || null,
@@ -203,7 +204,7 @@
 					</div>
 				</div>
 				<p><strong>Email:</strong> {data.profile.email}</p>
-				<p><strong>Role:</strong> {data.profile.role}</p>
+				<p><strong>Role:</strong> {formatLabel(data.profile.role)}</p>
 				<p><strong>Location:</strong> {data.profile.profile.location ?? 'Not set'}</p>
 				<p><strong>Phone:</strong> {data.profile.profile.phone ?? 'Not set'}</p>
 				{#if data.canManageAsAdmin}
@@ -363,88 +364,101 @@
 						<p class="subtle">
 							Add schools, degrees, and majors so other members understand your background.
 						</p>
+					{:else}
+						<p class="subtle field-note">
+							Blank education cards are ignored when you save. If you start one, finish the school,
+							degree, and major fields.
+						</p>
 					{/if}
 
-					{#each educations as education, index (index)}
-						<article class="request-card">
-							<div class="split">
-								<div class="field">
-									<label for={`education-university-${index}`}>University</label>
-									<input
-										id={`education-university-${index}`}
-										type="text"
-										bind:value={education.university}
-										placeholder="University of Melbourne"
-									/>
+					<div class="record-list">
+						{#each educations as education, index (index)}
+							<article class="request-card record-card">
+								<div class="split">
+									<div class="field">
+										<label for={`education-university-${index}`}>University</label>
+										<input
+											id={`education-university-${index}`}
+											type="text"
+											bind:value={education.university}
+											placeholder="University of Melbourne"
+										/>
+									</div>
+									<div class="field">
+										<label for={`education-degree-${index}`}>Degree</label>
+										<input
+											id={`education-degree-${index}`}
+											type="text"
+											bind:value={education.degree}
+											placeholder="Bachelor of Science"
+										/>
+									</div>
+								</div>
+								<div class="split">
+									<div class="field">
+										<label for={`education-major-${index}`}>Major</label>
+										<input
+											id={`education-major-${index}`}
+											type="text"
+											bind:value={education.major}
+											placeholder="Computer Science"
+										/>
+									</div>
+									<div class="field">
+										<label for={`education-status-${index}`}>Status</label>
+										<select id={`education-status-${index}`} bind:value={education.status}>
+											{#each recordStatuses as status (status.value)}
+												<option value={status.value}>{status.label}</option>
+											{/each}
+										</select>
+									</div>
+								</div>
+								<div class="split">
+									<div class="field">
+										<label for={`education-start-${index}`}>Start year</label>
+										<input
+											id={`education-start-${index}`}
+											type="number"
+											min="1900"
+											max="2100"
+											bind:value={education.startYear}
+										/>
+									</div>
+									<div class="field">
+										<label for={`education-end-${index}`}>End year</label>
+										<input
+											id={`education-end-${index}`}
+											type="number"
+											min="1900"
+											max="2100"
+											value={education.endYear}
+											oninput={(event) => {
+												const value = event.currentTarget.value;
+												education.endYear = value ? Number(value) : '';
+											}}
+										/>
+									</div>
 								</div>
 								<div class="field">
-									<label for={`education-degree-${index}`}>Degree</label>
-									<input
-										id={`education-degree-${index}`}
-										type="text"
-										bind:value={education.degree}
-										placeholder="Bachelor of Science"
-									/>
+									<label for={`education-description-${index}`}>Description</label>
+									<textarea
+										id={`education-description-${index}`}
+										bind:value={education.description}
+										placeholder="Optional details about focus, honors, or extracurricular work"
+									></textarea>
 								</div>
-							</div>
-							<div class="split">
-								<div class="field">
-									<label for={`education-major-${index}`}>Major</label>
-									<input
-										id={`education-major-${index}`}
-										type="text"
-										bind:value={education.major}
-										placeholder="Computer Science"
-									/>
+								<div class="record-card-actions">
+									<button
+										class="button secondary"
+										type="button"
+										onclick={() => removeEducation(index)}
+									>
+										Remove education
+									</button>
 								</div>
-								<div class="field">
-									<label for={`education-status-${index}`}>Status</label>
-									<select id={`education-status-${index}`} bind:value={education.status}>
-										{#each recordStatuses as status (status.value)}
-											<option value={status.value}>{status.label}</option>
-										{/each}
-									</select>
-								</div>
-							</div>
-							<div class="split">
-								<div class="field">
-									<label for={`education-start-${index}`}>Start year</label>
-									<input
-										id={`education-start-${index}`}
-										type="number"
-										min="1900"
-										max="2100"
-										bind:value={education.startYear}
-									/>
-								</div>
-								<div class="field">
-									<label for={`education-end-${index}`}>End year</label>
-									<input
-										id={`education-end-${index}`}
-										type="number"
-										min="1900"
-										max="2100"
-										value={education.endYear}
-										oninput={(event) => {
-											const value = event.currentTarget.value;
-											education.endYear = value ? Number(value) : '';
-										}}
-									/>
-								</div>
-							</div>
-							<div class="field">
-								<label for={`education-description-${index}`}>Description</label>
-								<textarea
-									id={`education-description-${index}`}
-									bind:value={education.description}
-									placeholder="Optional details about focus, honors, or extracurricular work"
-								></textarea>
-							</div>
-							<button class="button secondary" type="button" onclick={() => removeEducation(index)}>
-								Remove education
-							</button>
-						</article>
-					{/each}
+							</article>
+						{/each}
+					</div>
 
 					<button class="button secondary" type="button" onclick={addEducation}
 						>Add education</button
@@ -458,102 +472,111 @@
 						<p class="subtle">
 							Add work history, roles, and skills so other members know how you can help.
 						</p>
+					{:else}
+						<p class="subtle field-note">
+							Blank experience cards are ignored when you save. If you start one, finish the company
+							and position fields.
+						</p>
 					{/if}
 
-					{#each experiences as experience, index (index)}
-						<article class="request-card">
-							<div class="split">
+					<div class="record-list">
+						{#each experiences as experience, index (index)}
+							<article class="request-card record-card">
+								<div class="split">
+									<div class="field">
+										<label for={`experience-company-${index}`}>Company</label>
+										<input
+											id={`experience-company-${index}`}
+											type="text"
+											bind:value={experience.company}
+											placeholder="MentorMatch"
+										/>
+									</div>
+									<div class="field">
+										<label for={`experience-position-${index}`}>Position</label>
+										<input
+											id={`experience-position-${index}`}
+											type="text"
+											bind:value={experience.position}
+											placeholder="Product Manager"
+										/>
+									</div>
+								</div>
+								<div class="split">
+									<div class="field">
+										<label for={`experience-industry-${index}`}>Industry</label>
+										<input
+											id={`experience-industry-${index}`}
+											type="text"
+											bind:value={experience.industry}
+											placeholder="Technology"
+										/>
+									</div>
+									<div class="field">
+										<label for={`experience-status-${index}`}>Status</label>
+										<select id={`experience-status-${index}`} bind:value={experience.status}>
+											{#each recordStatuses as status (status.value)}
+												<option value={status.value}>{status.label}</option>
+											{/each}
+										</select>
+									</div>
+								</div>
+								<div class="split">
+									<div class="field">
+										<label for={`experience-start-${index}`}>Start year</label>
+										<input
+											id={`experience-start-${index}`}
+											type="number"
+											min="1900"
+											max="2100"
+											bind:value={experience.startYear}
+										/>
+									</div>
+									<div class="field">
+										<label for={`experience-end-${index}`}>End year</label>
+										<input
+											id={`experience-end-${index}`}
+											type="number"
+											min="1900"
+											max="2100"
+											value={experience.endYear}
+											oninput={(event) => {
+												const value = event.currentTarget.value;
+												experience.endYear = value ? Number(value) : '';
+											}}
+										/>
+									</div>
+								</div>
 								<div class="field">
-									<label for={`experience-company-${index}`}>Company</label>
+									<label for={`experience-skills-${index}`}>Skills</label>
 									<input
-										id={`experience-company-${index}`}
+										id={`experience-skills-${index}`}
 										type="text"
-										bind:value={experience.company}
-										placeholder="MentorMatch"
+										bind:value={experience.expertiseText}
+										placeholder="Career, Leadership, Product"
 									/>
+									<p class="subtle field-note">Separate skill tags with commas.</p>
 								</div>
 								<div class="field">
-									<label for={`experience-position-${index}`}>Position</label>
-									<input
-										id={`experience-position-${index}`}
-										type="text"
-										bind:value={experience.position}
-										placeholder="Product Manager"
-									/>
+									<label for={`experience-description-${index}`}>Description</label>
+									<textarea
+										id={`experience-description-${index}`}
+										bind:value={experience.description}
+										placeholder="Optional scope, achievements, or responsibilities"
+									></textarea>
 								</div>
-							</div>
-							<div class="split">
-								<div class="field">
-									<label for={`experience-industry-${index}`}>Industry</label>
-									<input
-										id={`experience-industry-${index}`}
-										type="text"
-										bind:value={experience.industry}
-										placeholder="Technology"
-									/>
+								<div class="record-card-actions">
+									<button
+										class="button secondary"
+										type="button"
+										onclick={() => removeExperience(index)}
+									>
+										Remove experience
+									</button>
 								</div>
-								<div class="field">
-									<label for={`experience-status-${index}`}>Status</label>
-									<select id={`experience-status-${index}`} bind:value={experience.status}>
-										{#each recordStatuses as status (status.value)}
-											<option value={status.value}>{status.label}</option>
-										{/each}
-									</select>
-								</div>
-							</div>
-							<div class="split">
-								<div class="field">
-									<label for={`experience-start-${index}`}>Start year</label>
-									<input
-										id={`experience-start-${index}`}
-										type="number"
-										min="1900"
-										max="2100"
-										bind:value={experience.startYear}
-									/>
-								</div>
-								<div class="field">
-									<label for={`experience-end-${index}`}>End year</label>
-									<input
-										id={`experience-end-${index}`}
-										type="number"
-										min="1900"
-										max="2100"
-										value={experience.endYear}
-										oninput={(event) => {
-											const value = event.currentTarget.value;
-											experience.endYear = value ? Number(value) : '';
-										}}
-									/>
-								</div>
-							</div>
-							<div class="field">
-								<label for={`experience-skills-${index}`}>Skills</label>
-								<input
-									id={`experience-skills-${index}`}
-									type="text"
-									bind:value={experience.expertiseText}
-									placeholder="Career, Leadership, Product"
-								/>
-								<p class="subtle field-note">Separate skill tags with commas.</p>
-							</div>
-							<div class="field">
-								<label for={`experience-description-${index}`}>Description</label>
-								<textarea
-									id={`experience-description-${index}`}
-									bind:value={experience.description}
-									placeholder="Optional scope, achievements, or responsibilities"
-								></textarea>
-							</div>
-							<button
-								class="button secondary"
-								type="button"
-								onclick={() => removeExperience(index)}
-							>
-								Remove experience
-							</button>
-						</article>
-					{/each}
+							</article>
+						{/each}
+					</div>
 
 					<button class="button secondary" type="button" onclick={addExperience}
 						>Add experience</button
@@ -569,3 +592,36 @@
 		<button class="button primary" type="submit">Save changes</button>
 	</form>
 </div>
+
+<style>
+	.record-list {
+		display: grid;
+		gap: 1.15rem;
+	}
+
+	.record-card {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		padding: 1.15rem;
+	}
+
+	.record-card-actions {
+		display: flex;
+		justify-content: flex-start;
+	}
+
+	@media (max-width: 640px) {
+		.record-list {
+			gap: 0.95rem;
+		}
+
+		.record-card {
+			padding: 1rem;
+		}
+
+		.record-card-actions .button {
+			width: 100%;
+		}
+	}
+</style>

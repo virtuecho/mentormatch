@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	let { data, form } = $props();
 </script>
@@ -14,11 +15,13 @@
 		<Panel title="Current status">
 			<div class="detail-list">
 				<article>
-					<p><strong>Role:</strong> {data.profile.role}</p>
+					<p><strong>Role:</strong> {formatLabel(data.profile.role)}</p>
 					<p><strong>Approved to mentor:</strong> {data.profile.isMentorApproved ? 'Yes' : 'No'}</p>
 					<p>
 						<strong>Latest application:</strong>
-						{data.profile.profile.mentorRequest?.status ?? 'No request submitted yet'}
+						{data.profile.profile.mentorRequest?.status
+							? formatLabel(data.profile.profile.mentorRequest.status)
+							: 'No request submitted yet'}
 					</p>
 					<p>
 						MentorMatch admins review each application in the internal review queue. You can check

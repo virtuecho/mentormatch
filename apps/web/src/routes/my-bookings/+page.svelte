@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
@@ -56,7 +57,9 @@
 								src={booking.counterpart.profileImageUrl}
 							/>
 							<div class="stack compact grow">
-								<span class={`status ${booking.status.toLowerCase()}`}>{booking.status}</span>
+								<span class={`status ${booking.status.toLowerCase()}`}>
+									{formatLabel(booking.status)}
+								</span>
 								<h3>{booking.topic}</h3>
 								<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
 								<p>{booking.slot.city} · {booking.slot.address}</p>

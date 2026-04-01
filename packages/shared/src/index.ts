@@ -34,7 +34,7 @@ export interface SessionUser {
 }
 
 export interface EducationRecord {
-  id: number;
+  id?: number;
   university: string;
   degree: string;
   major: string;
@@ -46,7 +46,7 @@ export interface EducationRecord {
 }
 
 export interface ExperienceRecord {
-  id: number;
+  id?: number;
   company: string;
   position: string;
   industry: string | null;
@@ -178,6 +178,27 @@ export function normalizeHttpUrl(
   }
 
   return httpUrlPattern.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+export function formatLabel(value: string | null | undefined): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const normalized = value.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.toLowerCase() === "on going") {
+    return "Ongoing";
+  }
+
+  return normalized
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 export function serializeLocalDateTime(
@@ -334,7 +355,10 @@ export function formatDateTimeLocalInTimeZone(
   const parts = getTimeZoneDateParts(timestamp, normalizedTimeZone);
   return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(
     parts.day,
-  ).padStart(2, "0")}T${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
+  ).padStart(
+    2,
+    "0",
+  )}T${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
 }
 
 const httpUrlSchema = z.url().refine((value) => isValidHttpUrl(value), {

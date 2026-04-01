@@ -6,7 +6,12 @@ import {
 	updateAvailabilitySlot
 } from '@mentormatch/feature-availability';
 import { cancelBooking, listBookings, respondToBooking } from '@mentormatch/feature-bookings';
-import { AppError, serializeLocalDateTime, serializeZonedDateTime } from '@mentormatch/shared';
+import {
+	AppError,
+	formatLabel,
+	serializeLocalDateTime,
+	serializeZonedDateTime
+} from '@mentormatch/shared';
 import {
 	getFormError,
 	handleApiError,
@@ -201,7 +206,7 @@ export const actions = {
 
 			return {
 				success: true,
-				message: `Booking ${result.status}`
+				message: `Booking ${formatLabel(result.status)}`
 			};
 		} catch (error) {
 			if (error instanceof AppError) {

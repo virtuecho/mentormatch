@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	let { data, form } = $props();
 
@@ -49,7 +50,9 @@
 		<Panel title="Account">
 			<div class="stack">
 				<p><strong>Email:</strong> {data.profile.email}</p>
-				<p><strong>Current role:</strong> <span class="pill">{data.profile.role}</span></p>
+				<p>
+					<strong>Current role:</strong> <span class="pill">{formatLabel(data.profile.role)}</span>
+				</p>
 				<p><strong>Mentor status:</strong> {getMentorStatusLabel(data.profile)}</p>
 			</div>
 		</Panel>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel, TagList } from '@mentormatch/ui';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
@@ -44,7 +45,7 @@
 			return null;
 		}
 
-		return status.charAt(0).toUpperCase() + status.slice(1);
+		return formatLabel(status);
 	}
 </script>
 

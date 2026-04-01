@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   availabilityCreateSchema,
+  formatLabel,
   formatDateTimeLocalInTimeZone,
   isValidTimeZone,
   mentorRequestSchema,
@@ -19,6 +20,12 @@ describe("shared helpers", () => {
       "https://example.com/profile",
     );
     expect(normalizeHttpUrl("")).toBeNull();
+  });
+
+  it("formats enum-style labels for display", () => {
+    expect(formatLabel("accepted")).toBe("Accepted");
+    expect(formatLabel("mentor")).toBe("Mentor");
+    expect(formatLabel("on_going")).toBe("Ongoing");
   });
 
   it("normalizes optional profile links during schema parsing", () => {
