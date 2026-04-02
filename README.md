@@ -61,6 +61,7 @@ Protected pages:
 - pending mentor applications can be withdrawn by the applicant and resubmitted later
 - mentor applications are reviewed by admin accounts in `/admin/review`
 - admin users can manage all users, public profiles, mentor access, and upcoming slots without changing login email or password
+- admin profile edits are explicitly scoped to the selected user, so saving a managed profile can never overwrite the admin's own profile by mistake
 - approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
 - mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`

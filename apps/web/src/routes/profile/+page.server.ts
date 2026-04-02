@@ -16,13 +16,29 @@ function parseRecordArray<T>(value: FormDataEntryValue | null): T[] {
 	}
 }
 
-function getTargetUserId(url: URL, viewer: NonNullable<App.Locals['user']>): number {
+function parsePositiveUserId(value: FormDataEntryValue | string | null | undefined): number | null {
+	if (typeof value !== 'string') {
+		return null;
+	}
+
+	const parsed = Number(value);
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getTargetUserId(
+	url: URL,
+	viewer: NonNullable<App.Locals['user']>,
+	form?: FormData
+): number {
 	if (viewer.role !== 'admin') {
 		return viewer.id;
 	}
 
-	const requestedUserId = Number(url.searchParams.get('userId') ?? viewer.id);
-	return Number.isInteger(requestedUserId) && requestedUserId > 0 ? requestedUserId : viewer.id;
+	return (
+		parsePositiveUserId(form?.get('targetUserId')) ??
+		parsePositiveUserId(url.searchParams.get('userId')) ??
+		viewer.id
+	);
 }
 
 export async function load({ locals, url }) {
@@ -38,8 +54,8 @@ export async function load({ locals, url }) {
 export const actions = {
 	save: async ({ request, locals, url }) => {
 		const user = requireUser(locals);
-		const targetUserId = getTargetUserId(url, user);
 		const form = await request.formData();
+		const targetUserId = getTargetUserId(url, user, form);
 
 		const educations = parseRecordArray<EducationRecord>(form.get('educationsJson'));
 		const experiences = parseRecordArray<ExperienceRecord>(form.get('experiencesJson'));

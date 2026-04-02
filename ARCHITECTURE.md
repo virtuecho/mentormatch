@@ -23,6 +23,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - the mentor application is launched from a full-width dialog so the review form is not constrained to a half-page column
 - admin accounts review mentor applications on `/admin/review`
 - admin accounts can also manage users, public profile details, mentor access, and upcoming slots from dedicated admin routes
+- admin-managed profile saves post the selected `userId` explicitly and the server revalidates that scope before updating any public profile records
 - `Professional skills` and `Mentorship areas` are optional free-entry fields, and applicants can withdraw a pending request before admin review
 - approved users gain mentor tools while still keeping mentee booking flows
 - profile and application links are normalized to `https://...` before validation

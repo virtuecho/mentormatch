@@ -251,6 +251,7 @@
 	</div>
 
 	<form class="stack" method="POST" action="?/save">
+		<input type="hidden" name="targetUserId" value={String(data.profile.id)} />
 		<input type="hidden" name="educationsJson" value={serializedEducations} />
 		<input type="hidden" name="experiencesJson" value={serializedExperiences} />
 
