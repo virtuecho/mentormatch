@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { AppError, type EducationRecord, type ExperienceRecord } from '@mentormatch/shared';
 import { adminUpdateUser, getProfile, updateProfile } from '@mentormatch/feature-profile';
 import { getFormError, handleApiError, requireDatabase, requireUser } from '$lib/server/http';
@@ -44,10 +44,17 @@ function getTargetUserId(
 export async function load({ locals, url }) {
 	const user = requireUser(locals);
 	const targetUserId = getTargetUserId(url, user);
+	const isAdminManagingUser = user.role === 'admin' && targetUserId !== user.id;
 	return {
 		profile: await getProfile(requireDatabase(locals), targetUserId),
-		isAdminManagingUser: user.role === 'admin' && targetUserId !== user.id,
-		canManageAsAdmin: user.role === 'admin'
+		isAdminManagingUser,
+		canManageAsAdmin: user.role === 'admin',
+		saveNotice:
+			url.searchParams.get('updated') === '1'
+				? isAdminManagingUser
+					? 'User profile updated'
+					: 'Profile updated'
+				: null
 	};
 }
 
@@ -83,14 +90,6 @@ export const actions = {
 			} else {
 				await updateProfile(requireDatabase(locals), targetUserId, payload);
 			}
-
-			return {
-				success: true,
-				message:
-					user.role === 'admin' && targetUserId !== user.id
-						? 'User profile updated'
-						: 'Profile updated'
-			};
 		} catch (error) {
 			if (error instanceof AppError) {
 				return fail(error.status, {
@@ -106,5 +105,14 @@ export const actions = {
 				message: formError.message
 			});
 		}
+
+		if (user.role === 'admin' && targetUserId !== user.id) {
+			throw redirect(303, `/profile?userId=${targetUserId}&updated=1`);
+		}
+
+		return {
+			success: true,
+			message: 'Profile updated'
+		};
 	}
 };

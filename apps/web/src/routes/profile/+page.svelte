@@ -603,6 +603,10 @@
 			</Panel>
 		</div>
 
+		{#if data.saveNotice && !form?.message}
+			<p class="form-success">{data.saveNotice}</p>
+		{/if}
+
 		{#if form?.message}
 			<p class:form-success={form?.success} class="form-error">{form.message}</p>
 		{/if}

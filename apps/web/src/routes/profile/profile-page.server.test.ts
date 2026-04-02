@@ -188,31 +188,31 @@ describe('profile page save action', () => {
 	it('updates the selected managed user instead of the admin when targetUserId is posted', async () => {
 		const db = new ProfilePageTestDatabase();
 
-		const result = await actions.save({
-			request: createRequest(
-				createBaseFields({
-					targetUserId: '2',
-					fullName: 'Managed Member'
-				})
-			),
-			locals: {
-				db,
-				authSecret: 'test-secret',
-				user: {
-					id: 1,
-					email: 'admin@example.com',
-					role: 'admin',
-					isMentorApproved: true,
-					fullName: 'Admin User',
-					profileImageUrl: ''
-				}
-			},
-			url: new URL('http://localhost:5173/profile')
-		} as unknown as Parameters<(typeof actions)['save']>[0]);
-
-		expect(result).toMatchObject({
-			success: true,
-			message: 'User profile updated'
+		await expect(
+			actions.save({
+				request: createRequest(
+					createBaseFields({
+						targetUserId: '2',
+						fullName: 'Managed Member'
+					})
+				),
+				locals: {
+					db,
+					authSecret: 'test-secret',
+					user: {
+						id: 1,
+						email: 'admin@example.com',
+						role: 'admin',
+						isMentorApproved: true,
+						fullName: 'Admin User',
+						profileImageUrl: ''
+					}
+				},
+				url: new URL('http://localhost:5173/profile')
+			} as unknown as Parameters<(typeof actions)['save']>[0])
+		).rejects.toMatchObject({
+			status: 303,
+			location: '/profile?userId=2&updated=1'
 		});
 		expect(db.profiles.find((item) => item.userId === 1)?.fullName).toBe('Admin User');
 		expect(db.profiles.find((item) => item.userId === 2)?.fullName).toBe('Managed Member');
