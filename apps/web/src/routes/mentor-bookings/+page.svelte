@@ -408,7 +408,7 @@
 			<p class="subtle section-copy">
 				Filter mentee requests by status. Your published availability stays separate on the right.
 			</p>
-			<div class="cta-row filter-row">
+			<div class="cta-row filter-row booking-filter-row">
 				{#each bookingFilters as filter (filter.value)}
 					<button
 						class="button filter-chip"
@@ -424,7 +424,7 @@
 			</div>
 		</div>
 
-		<section class="card-list">
+		<section class="card-list booking-results">
 			{#if filteredBookings.length === 0}
 				<div class="detail-card">
 					<h3>
@@ -439,26 +439,36 @@
 			{:else}
 				{#each filteredBookings as booking (booking.id)}
 					<article class="detail-card request-card">
-						<div class="booking-row">
-							<div class="stack">
-								<span class={`status ${booking.status.toLowerCase()}`}>
-									{formatLabel(booking.status)}
-								</span>
-								<h3>{booking.topic}</h3>
-								<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
-								<p>{booking.slot.city} · {booking.slot.address}</p>
-								<div class="mentor-card-header">
+						<div class="request-compact-card">
+							<div class="request-compact-header">
+								<div class="mentor-card-header grow">
 									<ProfileAvatar
 										name={booking.counterpart.fullName}
 										src={booking.counterpart.profileImageUrl}
 									/>
-									<div class="stack compact">
+									<div class="request-compact-title">
+										<h3>{booking.topic}</h3>
 										<p>Mentee: {booking.counterpart.fullName}</p>
 										<p>{booking.counterpart.email}</p>
 									</div>
 								</div>
+								<span class={`status ${booking.status.toLowerCase()}`}>
+									{formatLabel(booking.status)}
+								</span>
 							</div>
-							<div class="cta-row">
+
+							<div class="booking-meta-grid">
+								<div class="booking-meta-item">
+									<p class="booking-meta-label">When</p>
+									<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
+								</div>
+								<div class="booking-meta-item">
+									<p class="booking-meta-label">Where</p>
+									<p>{booking.slot.city} · {booking.slot.address}</p>
+								</div>
+							</div>
+
+							<div class="cta-row booking-card-actions">
 								<a
 									class="button secondary"
 									href={resolve('/members/[id]', { id: String(booking.counterpart.id) })}
@@ -511,7 +521,7 @@
 	}
 
 	.slot-list-note {
-		margin-bottom: 0.35rem;
+		margin-bottom: 1rem;
 	}
 
 	.slot-card {

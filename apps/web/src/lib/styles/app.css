@@ -121,6 +121,10 @@ select {
 	justify-content: space-between;
 }
 
+.booking-filter-row {
+	margin-top: 0.35rem;
+}
+
 .section-copy,
 .field-note {
 	margin: 0;
@@ -296,6 +300,60 @@ select {
 	border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+.booking-results {
+	margin-top: 0.85rem;
+}
+
+.request-compact-card {
+	display: grid;
+	gap: 0.95rem;
+}
+
+.request-compact-card h3,
+.request-compact-card p {
+	margin: 0;
+}
+
+.request-compact-header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: start;
+	gap: 0.85rem 1rem;
+}
+
+.request-compact-title {
+	display: grid;
+	gap: 0.35rem;
+	flex: 1 1 16rem;
+	min-width: 0;
+}
+
+.booking-meta-grid {
+	display: grid;
+	gap: 0.8rem 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.booking-meta-item {
+	display: grid;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.booking-meta-label {
+	margin: 0;
+	font-size: 0.74rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #64748b;
+}
+
+.booking-card-actions {
+	padding-top: 0.1rem;
+}
+
 .form-error,
 .form-success {
 	margin: 0;
@@ -365,6 +423,11 @@ select {
 	color: #b91c1c;
 }
 
+.status.withdrawn {
+	background: rgba(100, 116, 139, 0.14);
+	color: #475569;
+}
+
 @media (max-width: 860px) {
 	.page {
 		padding-top: 1.2rem;
@@ -376,5 +439,9 @@ select {
 
 	.search-actions .button {
 		width: 100%;
+	}
+
+	.booking-meta-grid {
+		grid-template-columns: 1fr;
 	}
 }

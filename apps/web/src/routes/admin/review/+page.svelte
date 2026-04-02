@@ -89,7 +89,13 @@
 							{/if}
 						</div>
 
-						{#if request.status !== 'pending'}
+						{#if request.status === 'withdrawn'}
+							<p>
+								Withdrawn {request.reviewedAt
+									? new Date(request.reviewedAt).toLocaleString()
+									: 'recently'}.
+							</p>
+						{:else if request.status !== 'pending'}
 							<p>
 								Reviewed {request.reviewedAt
 									? new Date(request.reviewedAt).toLocaleString()

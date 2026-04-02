@@ -21,6 +21,10 @@
 			return 'Needs updates';
 		}
 
+		if (profile.profile.mentorRequest?.status === 'withdrawn') {
+			return 'Withdrawn';
+		}
+
 		return 'Not submitted';
 	}
 
@@ -29,6 +33,10 @@
 	) {
 		if (mentorRequest?.status === 'rejected') {
 			return 'Update mentor application';
+		}
+
+		if (mentorRequest?.status === 'withdrawn') {
+			return 'Apply again';
 		}
 
 		if (mentorRequest) {

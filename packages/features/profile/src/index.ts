@@ -353,6 +353,71 @@ export async function submitMentorRequest(
   return { ok: true };
 }
 
+export async function withdrawMentorRequest(
+  db: DatabaseClient,
+  userId: number,
+) {
+  const user = await db.get<{ role: UserRole; is_mentor_approved: number }>(
+    "SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1",
+    [userId],
+  );
+
+  if (!user) {
+    throw new AppError(404, "user_not_found", "User not found");
+  }
+
+  if (user.role === "admin") {
+    throw new AppError(
+      403,
+      "admin_review_only",
+      "Admin accounts do not use mentor applications",
+    );
+  }
+
+  if (user.is_mentor_approved) {
+    throw new AppError(
+      409,
+      "mentor_already_approved",
+      "Your mentor account is already approved",
+    );
+  }
+
+  const currentRequest = await db.get<{ id: number; status: RequestStatus }>(
+    `
+			SELECT id, status
+			FROM mentor_requests
+			WHERE user_id = ?
+			ORDER BY submitted_at DESC
+			LIMIT 1
+		`,
+    [userId],
+  );
+
+  if (!currentRequest || currentRequest.status !== "pending") {
+    throw new AppError(
+      409,
+      "mentor_request_not_pending",
+      "You do not have a pending mentor application to withdraw",
+    );
+  }
+
+  const now = new Date().toISOString();
+  await db.run(
+    "UPDATE mentor_requests SET status = 'withdrawn', reviewed_at = ? WHERE id = ?",
+    [now, currentRequest.id],
+  );
+
+  if (user.role !== "mentee") {
+    await db.run("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", [
+      "mentee",
+      now,
+      userId,
+    ]);
+  }
+
+  return { ok: true };
+}
+
 export async function listMentorRequests(db: DatabaseClient) {
   const requests = await db.all<MentorRequestListRow>(
     `
@@ -375,7 +440,9 @@ export async function listMentorRequests(db: DatabaseClient) {
 				CASE r.status
 					WHEN 'pending' THEN 0
 					WHEN 'approved' THEN 1
-					ELSE 2
+					WHEN 'rejected' THEN 2
+					WHEN 'withdrawn' THEN 3
+					ELSE 4
 				END,
 				r.submitted_at DESC
 		`,

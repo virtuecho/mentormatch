@@ -20,8 +20,10 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - signed-in users can search mentors, manage bookings, edit their profile, log out, change their password, and delete their account
 - new accounts are created as mentees first
 - users who want to mentor submit an application on `/mentor-verification`
+- the mentor application is launched from a full-width dialog so the review form is not constrained to a half-page column
 - admin accounts review mentor applications on `/admin/review`
 - admin accounts can also manage users, public profile details, mentor access, and upcoming slots from dedicated admin routes
+- `Professional skills` and `Mentorship areas` are optional free-entry fields, and applicants can withdraw a pending request before admin review
 - approved users gain mentor tools while still keeping mentee booking flows
 - profile and application links are normalized to `https://...` before validation
 - profile education and experience records can be saved with partial details, while completely blank cards are skipped
@@ -31,6 +33,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - accepted sessions automatically become completed after their scheduled end time, and mentors can manually complete them earlier when needed
 - slots support two booking modes: preset mentor agenda or open topic chosen by the mentee
 - booking rules prevent duplicate same-slot requests, overlapping active mentee requests, and multiple accepted bookings on a single slot
+- booking and hosted-session cards use a denser metadata layout so filtering large lists stays readable on smaller screens
 - availability is converted to UTC on submit and rendered back in each viewer's locale
 - the shared app shell collapses navigation on small screens and keeps account actions, including logout, reachable in a mobile menu
 
@@ -186,7 +189,7 @@ The current workspace uses:
 - `pnpm build`
 
 Coverage is split so feature logic can be tested separately from browser-visible flows.
-The current test suite covers signup, login, logout, settings, mentor application review, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
+The current test suite covers signup, login, logout, settings, mentor application review and withdrawal, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
 
 ## CI/CD
 

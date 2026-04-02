@@ -3,12 +3,13 @@ import type { DatabaseClient, QueryParams, QueryResult } from "@mentormatch/db";
 import {
   adminUpdateUser,
   approveUserAsMentor,
+  listMentorRequests,
   listUsersForAdmin,
   revokeMentorApproval,
   reviewMentorRequest,
   submitMentorRequest,
   toggleRole,
-  listMentorRequests,
+  withdrawMentorRequest,
 } from "./index";
 
 type UserRow = {
@@ -36,7 +37,7 @@ type MentorRequestRow = {
   user_id: number;
   document_url: string;
   note: string | null;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "withdrawn";
   submitted_at: string;
   reviewed_at: string | null;
 };
@@ -351,6 +352,24 @@ class ProfileTestDatabase implements DatabaseClient {
       return { changes: 1, lastRowId: null };
     }
 
+    if (
+      sql.includes(
+        "UPDATE mentor_requests SET status = 'withdrawn', reviewed_at = ? WHERE id = ?",
+      )
+    ) {
+      const [reviewedAt, requestId] = params;
+      const request = this.mentorRequests.find(
+        (item) => item.id === Number(requestId),
+      );
+      if (!request) {
+        return { changes: 0, lastRowId: null };
+      }
+
+      request.status = "withdrawn";
+      request.reviewed_at = String(reviewedAt);
+      return { changes: 1, lastRowId: null };
+    }
+
     if (sql.includes("UPDATE mentor_requests SET status = ?")) {
       const [status, reviewedAt, requestId] = params;
       const request = this.mentorRequests.find(
@@ -619,6 +638,47 @@ describe("feature-profile", () => {
       },
     ]);
     await expect(listMentorRequests(db)).resolves.toHaveLength(1);
+  });
+
+  it("lets a user withdraw a pending mentor application", async () => {
+    const db = new ProfileTestDatabase();
+
+    await submitMentorRequest(db, 1, {
+      documentUrl: "https://example.com/first.pdf",
+      note: "First version",
+    });
+
+    await expect(withdrawMentorRequest(db, 1)).resolves.toEqual({ ok: true });
+
+    await expect(listMentorRequests(db)).resolves.toMatchObject([
+      {
+        status: "withdrawn",
+      },
+    ]);
+  });
+
+  it("allows resubmission after a mentor application was withdrawn", async () => {
+    const db = new ProfileTestDatabase();
+
+    await submitMentorRequest(db, 1, {
+      documentUrl: "https://example.com/first.pdf",
+      note: "First version",
+    });
+    await withdrawMentorRequest(db, 1);
+    await submitMentorRequest(db, 1, {
+      documentUrl: "https://example.com/second.pdf",
+      note: "Second version",
+    });
+
+    await expect(listMentorRequests(db)).resolves.toMatchObject([
+      {
+        status: "withdrawn",
+      },
+      {
+        documentUrl: "https://example.com/second.pdf",
+        status: "pending",
+      },
+    ]);
   });
 
   it("blocks mentor mode until an application has been approved", async () => {

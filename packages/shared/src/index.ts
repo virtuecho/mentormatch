@@ -5,7 +5,12 @@ export const DEFAULT_AVATAR =
   "https://ui-avatars.com/api/?name=MentorMatch&background=0F172A&color=F8FAFC";
 
 export const USER_ROLES = ["mentee", "mentor", "admin"] as const;
-export const REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
+export const REQUEST_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+  "withdrawn",
+] as const;
 export const BOOKING_STATUSES = [
   "pending",
   "accepted",
