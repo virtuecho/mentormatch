@@ -32,6 +32,43 @@
 </script>
 
 <div class="app-shell">
+  <section class="mobile-topbar">
+    <div class="brand">
+      <div class="brand-mark">MM</div>
+      <div>
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </div>
+    </div>
+
+    <details class="mobile-menu">
+      <summary>Open navigation</summary>
+
+      <div class="mobile-menu-panel">
+        <nav>
+          {#each navItems as item}
+            <a class:active={currentPath === item.href} href={item.href}>
+              {item.label}
+            </a>
+          {/each}
+        </nav>
+
+        {#if user}
+          <div class="account-card">
+            <p class="account-label">Signed in as</p>
+            <strong class="account-name">{user.fullName}</strong>
+            <p class="account-email">{user.email}</p>
+            <span class="account-role">{user.role}</span>
+
+            <form method="POST" action="/logout">
+              <button class="logout-button" type="submit">Log out</button>
+            </form>
+          </div>
+        {/if}
+      </div>
+    </details>
+  </section>
+
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark">MM</div>
@@ -52,8 +89,8 @@
     {#if user}
       <div class="account-card">
         <p class="account-label">Signed in as</p>
-        <strong>{user.fullName}</strong>
-        <p>{user.email}</p>
+        <strong class="account-name">{user.fullName}</strong>
+        <p class="account-email">{user.email}</p>
         <span class="account-role">{user.role}</span>
 
         <form method="POST" action="/logout">
@@ -78,7 +115,14 @@
       linear-gradient(180deg, #f8fbff 0%, #edf4fb 100%);
   }
 
+  .mobile-topbar {
+    display: none;
+  }
+
   .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
     padding: 2rem 1.25rem;
     border-right: 1px solid rgba(15, 23, 42, 0.08);
     background: rgba(255, 255, 255, 0.78);
@@ -86,13 +130,15 @@
     position: sticky;
     top: 0;
     height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .brand {
     display: flex;
     gap: 1rem;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
   }
 
   .brand-mark {
@@ -142,8 +188,9 @@
   }
 
   .account-card {
-    margin-top: 2rem;
+    margin-top: auto;
     padding: 1rem;
+    min-width: 0;
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 1rem;
     background: rgba(248, 250, 252, 0.9);
@@ -160,6 +207,12 @@
     display: block;
     margin-top: 0.3rem;
     color: #0f172a;
+  }
+
+  .account-name,
+  .account-email {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .account-role {
@@ -199,16 +252,68 @@
       grid-template-columns: 1fr;
     }
 
-    .sidebar {
-      position: static;
-      height: auto;
-      border-right: none;
+    .mobile-topbar {
+      display: grid;
+      gap: 1rem;
+      padding: 1rem 1rem 0.85rem;
+      background: rgba(255, 255, 255, 0.8);
       border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(18px);
     }
 
-    nav {
+    .mobile-topbar .brand {
+      margin-bottom: 0;
+    }
+
+    .mobile-menu {
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 1rem;
+      background: rgba(248, 250, 252, 0.92);
+      overflow: hidden;
+    }
+
+    .mobile-menu summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.9rem 1rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .mobile-menu summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .mobile-menu-panel {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.9rem;
+      padding: 0 0.9rem 0.9rem;
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .mobile-menu nav {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+      padding-top: 0.9rem;
+    }
+
+    .mobile-menu nav a {
+      min-height: 2.8rem;
+      padding: 0.75rem 0.85rem;
+      font-size: 0.95rem;
+    }
+
+    .mobile-menu .account-card {
+      margin-top: 0;
+    }
+
+    .sidebar {
+      display: none;
+    }
+
+    .content {
+      min-width: 0;
     }
   }
 </style>

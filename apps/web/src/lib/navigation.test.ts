@@ -22,6 +22,8 @@ describe('mainNavigation', () => {
 		expect(getNavigation('mentor').some((item) => item.href === '/mentor-bookings')).toBe(true);
 		expect(getNavigation('mentor').some((item) => item.href === '/my-bookings')).toBe(true);
 		expect(getNavigation('admin').some((item) => item.href === '/admin/review')).toBe(true);
+		expect(getNavigation('admin').some((item) => item.href === '/admin/mentors')).toBe(true);
+		expect(getNavigation('admin').some((item) => item.href === '/admin/slots')).toBe(true);
 		expect(getNavigation(null).some((item) => item.href === '/login')).toBe(true);
 	});
 

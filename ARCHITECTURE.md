@@ -20,14 +20,26 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - signed-in users can search mentors, manage bookings, edit their profile, log out, change their password, and delete their account
 - new accounts are created as mentees first
 - users who want to mentor submit an application on `/mentor-verification`
+- the mentor application is launched from a full-width dialog so the review form is not constrained to a half-page column
 - admin accounts review mentor applications on `/admin/review`
+- admin accounts can also manage users, public profile details, mentor access, and upcoming slots from dedicated admin routes
+- admin-managed profile saves post the selected `userId` explicitly and the server revalidates that scope before updating any public profile records
+- successful admin edits redirect back to the same managed `/profile?userId=...` route so the post-save page state stays attached to the edited user
+- the profile `Skills` input stores comma-separated values and the UI renders them back as individual tags
+- `Professional skills` and `Mentorship areas` are optional free-entry fields, and applicants can withdraw a pending request before admin review
 - approved users gain mentor tools while still keeping mentee booking flows
 - profile and application links are normalized to `https://...` before validation
+- profile education and experience records can be saved with partial details, while completely blank cards are skipped
 - availability defaults to the mentor's current browser time zone, but the mentor can switch to another IANA time zone before publishing
-- mentors can create either a one-off slot or a weekly recurring series
+- mentors can create either a one-off slot or a recurring series using daily, weekday, weekly, biweekly, or monthly presets
+- recurring slots are persisted as separate occurrences so a single middle session can be edited or deleted independently
+- accepted sessions automatically become completed after their scheduled end time, and mentors can manually complete them earlier when needed
 - slots support two booking modes: preset mentor agenda or open topic chosen by the mentee
 - booking rules prevent duplicate same-slot requests, overlapping active mentee requests, and multiple accepted bookings on a single slot
+- booking and hosted-session cards use a denser metadata layout so filtering large lists stays readable on smaller screens
 - availability is converted to UTC on submit and rendered back in each viewer's locale
+- the shared app shell collapses navigation on small screens and keeps account actions, including logout, reachable in a mobile menu
+- the mobile shell also preserves bottom spacing under the `Open navigation` control so content does not butt directly against the topbar
 
 ## Repository Structure
 
@@ -181,7 +193,7 @@ The current workspace uses:
 - `pnpm build`
 
 Coverage is split so feature logic can be tested separately from browser-visible flows.
-The current test suite covers signup, login, logout, settings, mentor application review, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
+The current test suite covers signup, login, logout, settings, mentor application review and withdrawal, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
 
 ## CI/CD
 

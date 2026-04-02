@@ -5,7 +5,12 @@ export const DEFAULT_AVATAR =
   "https://ui-avatars.com/api/?name=MentorMatch&background=0F172A&color=F8FAFC";
 
 export const USER_ROLES = ["mentee", "mentor", "admin"] as const;
-export const REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
+export const REQUEST_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+  "withdrawn",
+] as const;
 export const BOOKING_STATUSES = [
   "pending",
   "accepted",
@@ -34,7 +39,7 @@ export interface SessionUser {
 }
 
 export interface EducationRecord {
-  id: number;
+  id?: number;
   university: string;
   degree: string;
   major: string;
@@ -46,7 +51,7 @@ export interface EducationRecord {
 }
 
 export interface ExperienceRecord {
-  id: number;
+  id?: number;
   company: string;
   position: string;
   industry: string | null;
@@ -178,6 +183,27 @@ export function normalizeHttpUrl(
   }
 
   return httpUrlPattern.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+export function formatLabel(value: string | null | undefined): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const normalized = value.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.toLowerCase() === "on going") {
+    return "Ongoing";
+  }
+
+  return normalized
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 export function serializeLocalDateTime(
@@ -313,25 +339,48 @@ export function serializeZonedDateTime(
   return new Date(guess).toISOString();
 }
 
+export function formatDateTimeLocalInTimeZone(
+  value: string | null | undefined,
+  timeZone: string | null | undefined,
+): string | null {
+  if (typeof value !== "string" || typeof timeZone !== "string") {
+    return null;
+  }
+
+  const normalizedTimeZone = timeZone.trim();
+  if (!normalizedTimeZone || !isValidTimeZone(normalizedTimeZone)) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+
+  const parts = getTimeZoneDateParts(timestamp, normalizedTimeZone);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(
+    parts.day,
+  ).padStart(
+    2,
+    "0",
+  )}T${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
+}
+
 const httpUrlSchema = z.url().refine((value) => isValidHttpUrl(value), {
   message: "Please enter a valid URL",
 });
+const optionalRecordString = z.string().trim().max(200).default("");
 
 const optionalUrlSchema = z.preprocess(
   (value) => normalizeHttpUrl(typeof value === "string" ? value : null),
   httpUrlSchema.nullable().optional(),
 );
 
-const requiredUrlSchema = z.preprocess(
-  (value) => normalizeHttpUrl(typeof value === "string" ? value : null) ?? "",
-  httpUrlSchema,
-);
-
 export const educationSchema = z.object({
   id: z.number().int().positive().optional(),
-  university: nonEmptyString.max(200),
-  degree: nonEmptyString.max(200),
-  major: nonEmptyString.max(200),
+  university: optionalRecordString,
+  degree: optionalRecordString,
+  major: optionalRecordString,
   startYear: z.number().int().min(1900).max(2100),
   endYear: z.number().int().min(1900).max(2100).nullable().optional(),
   status: z.enum(RECORD_STATUSES).default("on_going"),
@@ -341,8 +390,8 @@ export const educationSchema = z.object({
 
 export const experienceSchema = z.object({
   id: z.number().int().positive().optional(),
-  company: nonEmptyString.max(200),
-  position: nonEmptyString.max(200),
+  company: optionalRecordString,
+  position: optionalRecordString,
   industry: z.string().trim().max(200).nullable().optional(),
   expertise: z.array(z.string().trim().min(1).max(100)).default([]),
   startYear: z.number().int().min(1900).max(2100),
@@ -388,7 +437,7 @@ export const profileUpdateSchema = z.object({
 });
 
 export const mentorRequestSchema = z.object({
-  documentUrl: requiredUrlSchema,
+  documentUrl: optionalUrlSchema,
   note: optionalNullableString,
 });
 
@@ -403,27 +452,34 @@ export const mentorSearchSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(12),
 });
 
-export const availabilityCreateSchema = z.object({
-  title: z.string().trim().max(255).default("Mentorship Session"),
-  startTime: z.iso.datetime(),
-  durationMins: z.coerce.number().int().min(15).max(480),
-  locationType: z.enum(LOCATION_TYPES).default("in_person"),
-  city: z.string().trim().min(1).max(120),
-  address: z.string().trim().min(1).max(255),
-  maxParticipants: z.coerce.number().int().min(1).max(20).default(2),
-  note: optionalNullableString,
-  bookingMode: z.enum(SLOT_BOOKING_MODES).default("open"),
-  presetTopic: z.string().trim().max(255).nullable().optional(),
-  presetDescription: optionalNullableString,
-}).superRefine((value, ctx) => {
-  if (value.bookingMode === "preset" && !value.presetTopic) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["presetTopic"],
-      message: "Please add a topic for preset sessions",
-    });
-  }
-});
+export const availabilityCreateSchema = z
+  .object({
+    title: z.string().trim().max(255).default("Mentorship Session"),
+    startTime: z.iso.datetime(),
+    durationMins: z.coerce.number().int().min(15).max(480),
+    locationType: z.enum(LOCATION_TYPES).default("in_person"),
+    city: z.string().trim().min(1).max(120),
+    address: z.string().trim().min(1).max(255),
+    maxParticipants: z.coerce
+      .number()
+      .int()
+      .min(1, "Max participants must be at least 1")
+      .max(20, "Max participants must be 20 or fewer")
+      .default(2),
+    note: optionalNullableString,
+    bookingMode: z.enum(SLOT_BOOKING_MODES).default("open"),
+    presetTopic: z.string().trim().max(255).nullable().optional(),
+    presetDescription: optionalNullableString,
+  })
+  .superRefine((value, ctx) => {
+    if (value.bookingMode === "preset" && !value.presetTopic) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["presetTopic"],
+        message: "Please add a topic for preset sessions",
+      });
+    }
+  });
 
 export const bookingCreateSchema = z.object({
   availabilitySlotId: z.coerce.number().int().positive(),

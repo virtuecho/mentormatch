@@ -1,10 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data, form } = $props();
 	let activeFilter = $state('all');
+	const bookingFilters = [
+		{ value: 'all', label: 'All' },
+		{ value: 'pending', label: 'Pending' },
+		{ value: 'accepted', label: 'Accepted' },
+		{ value: 'rejected', label: 'Rejected' },
+		{ value: 'completed', label: 'Completed' }
+	] as const;
 	const filteredBookings = $derived(
 		activeFilter === 'all'
 			? data.bookings
@@ -14,30 +22,27 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="My sessions"
-		title="Track your upcoming mentorship sessions"
+		eyebrow="Booked sessions"
+		title="Track your booked mentorship sessions"
 		description="See upcoming sessions, pending requests, and recent updates in one place."
 	/>
 
-	<div class="cta-row">
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'all')}
-			>All</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'pending')}
-			>Pending</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'accepted')}
-			>Accepted</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'rejected')}
-			>Rejected</button
-		>
-		<button class="button secondary" type="button" onclick={() => (activeFilter = 'completed')}
-			>Completed</button
-		>
+	<div class="cta-row booking-filter-row">
+		{#each bookingFilters as filter (filter.value)}
+			<button
+				class="button filter-chip"
+				class:primary={activeFilter === filter.value}
+				class:secondary={activeFilter !== filter.value}
+				type="button"
+				aria-pressed={activeFilter === filter.value}
+				onclick={() => (activeFilter = filter.value)}
+			>
+				{filter.label}
+			</button>
+		{/each}
 	</div>
 
-	<section class="card-list">
+	<section class="card-list booking-results">
 		{#if filteredBookings.length === 0}
 			<Panel>
 				<div class="detail-card">
@@ -49,21 +54,36 @@
 		{:else}
 			{#each filteredBookings as booking (booking.id)}
 				<Panel>
-					<div class="booking-row">
-						<div class="mentor-card-header grow">
-							<ProfileAvatar
-								name={booking.counterpart.fullName}
-								src={booking.counterpart.profileImageUrl}
-							/>
-							<div class="stack compact grow">
-								<span class={`status ${booking.status.toLowerCase()}`}>{booking.status}</span>
-								<h3>{booking.topic}</h3>
+					<div class="request-compact-card">
+						<div class="request-compact-header">
+							<div class="mentor-card-header grow">
+								<ProfileAvatar
+									name={booking.counterpart.fullName}
+									src={booking.counterpart.profileImageUrl}
+								/>
+								<div class="request-compact-title">
+									<h3>{booking.topic}</h3>
+									<p>Mentor: {booking.counterpart.fullName}</p>
+									<p>{booking.counterpart.email}</p>
+								</div>
+							</div>
+							<span class={`status ${booking.status.toLowerCase()}`}>
+								{formatLabel(booking.status)}
+							</span>
+						</div>
+
+						<div class="booking-meta-grid">
+							<div class="booking-meta-item">
+								<p class="booking-meta-label">When</p>
 								<p>{new Date(booking.slot.startTime).toLocaleString()}</p>
+							</div>
+							<div class="booking-meta-item">
+								<p class="booking-meta-label">Where</p>
 								<p>{booking.slot.city} · {booking.slot.address}</p>
-								<p>Mentor: {booking.counterpart.fullName}</p>
 							</div>
 						</div>
-						<div class="cta-row">
+
+						<div class="cta-row booking-card-actions">
 							<a
 								class="button secondary"
 								href={resolve('/mentor/[id]', { id: String(booking.counterpart.id) })}

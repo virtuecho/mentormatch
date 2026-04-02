@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   availabilityCreateSchema,
+  formatLabel,
+  formatDateTimeLocalInTimeZone,
   isValidTimeZone,
   mentorRequestSchema,
   normalizeHttpUrl,
@@ -18,6 +20,12 @@ describe("shared helpers", () => {
       "https://example.com/profile",
     );
     expect(normalizeHttpUrl("")).toBeNull();
+  });
+
+  it("formats enum-style labels for display", () => {
+    expect(formatLabel("accepted")).toBe("Accepted");
+    expect(formatLabel("mentor")).toBe("Mentor");
+    expect(formatLabel("on_going")).toBe("Ongoing");
   });
 
   it("normalizes optional profile links during schema parsing", () => {
@@ -45,6 +53,52 @@ describe("shared helpers", () => {
     });
   });
 
+  it("allows partial education and experience records in profile updates", () => {
+    const payload = profileUpdateSchema.parse({
+      fullName: "Ada Lovelace",
+      bio: null,
+      location: null,
+      phone: null,
+      profileImageUrl: null,
+      linkedinUrl: null,
+      instagramUrl: null,
+      facebookUrl: null,
+      websiteUrl: null,
+      educations: [
+        {
+          university: "University of Melbourne",
+          degree: "",
+          major: "",
+          startYear: 2018,
+          endYear: null,
+          status: "completed",
+        },
+      ],
+      experiences: [
+        {
+          company: "MentorMatch",
+          position: "",
+          industry: "Technology",
+          expertise: [],
+          startYear: 2024,
+          endYear: null,
+          status: "on_going",
+        },
+      ],
+      mentorSkills: [],
+    });
+
+    expect(payload.educations[0]).toMatchObject({
+      university: "University of Melbourne",
+      degree: "",
+      major: "",
+    });
+    expect(payload.experiences[0]).toMatchObject({
+      company: "MentorMatch",
+      position: "",
+    });
+  });
+
   it("normalizes mentor application document links", () => {
     const payload = mentorRequestSchema.parse({
       documentUrl: "docs.example.com/mentor-resume.pdf",
@@ -54,6 +108,15 @@ describe("shared helpers", () => {
     expect(payload.documentUrl).toBe(
       "https://docs.example.com/mentor-resume.pdf",
     );
+  });
+
+  it("allows mentor applications without a supporting document link", () => {
+    const payload = mentorRequestSchema.parse({
+      documentUrl: "",
+      note: "Ready to mentor",
+    });
+
+    expect(payload.documentUrl).toBeNull();
   });
 
   it("keeps rejecting malformed links after normalization", () => {
@@ -93,6 +156,15 @@ describe("shared helpers", () => {
     ).toBe("2026-01-15T17:30:00.000Z");
   });
 
+  it("formats ISO timestamps back into datetime-local values for a given zone", () => {
+    expect(
+      formatDateTimeLocalInTimeZone(
+        "2026-01-15T01:30:00.000Z",
+        "Asia/Shanghai",
+      ),
+    ).toBe("2026-01-15T09:30");
+  });
+
   it("validates time zone identifiers before converting them", () => {
     expect(isValidTimeZone("Asia/Shanghai")).toBe(true);
     expect(isValidTimeZone("Mars/Olympus_Mons")).toBe(false);
@@ -117,5 +189,23 @@ describe("shared helpers", () => {
         presetDescription: "We review one blocker together.",
       }),
     ).toThrowError(/preset sessions/i);
+  });
+
+  it("uses a clear validation message for max participants", () => {
+    expect(() =>
+      availabilityCreateSchema.parse({
+        title: "Career clinic",
+        startTime: "2026-04-01T01:30:00.000Z",
+        durationMins: 60,
+        locationType: "online",
+        city: "Shanghai",
+        address: "https://meet.google.com/demo",
+        maxParticipants: 21,
+        note: null,
+        bookingMode: "open",
+        presetTopic: null,
+        presetDescription: null,
+      }),
+    ).toThrowError(/20 or fewer/i);
   });
 });

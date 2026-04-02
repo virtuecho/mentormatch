@@ -123,4 +123,57 @@ describe('settings actions', () => {
 			code: 'invalid_credentials'
 		});
 	});
+
+	it('blocks admin accounts from deleting themselves', async () => {
+		const db = new AuthTestDatabase();
+		const registration = await registerUser(db, {
+			fullName: 'Admin User',
+			email: 'admin@example.com',
+			password: 'password123',
+			role: 'mentee'
+		});
+
+		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', [
+			'admin',
+			new Date().toISOString(),
+			registration.user.id
+		]);
+
+		const result = (await actions.deleteAccount({
+			request: createRequest({
+				password: 'password123',
+				confirmation: 'DELETE'
+			}),
+			locals: {
+				...createLocals(db),
+				user: {
+					...createLocals(db).user!,
+					id: registration.user.id,
+					email: 'admin@example.com',
+					role: 'admin',
+					isMentorApproved: true,
+					fullName: 'Admin User'
+				}
+			},
+			cookies: {
+				delete() {}
+			},
+			url: new URL('http://localhost:5173/settings')
+		} as unknown as Parameters<(typeof actions)['deleteAccount']>[0])) as ActionFailure<{
+			message: string;
+			section: string;
+		}>;
+
+		expect(result.status).toBe(403);
+		expect(result.data.section).toBe('delete');
+		expect(result.data.message).toMatch(/admin accounts cannot delete/i);
+
+		await expect(
+			loginUser(db, { email: 'admin@example.com', password: 'password123' }, 'test-secret')
+		).resolves.toMatchObject({
+			user: {
+				email: 'admin@example.com'
+			}
+		});
+	});
 });

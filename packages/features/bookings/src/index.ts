@@ -6,8 +6,36 @@ import {
   ensureAvatar,
 } from "@mentormatch/shared";
 
+type BookingSlotRow = {
+  id: number;
+  mentor_id: number;
+  is_booked: number;
+  max_participants: number;
+  booking_mode: "open" | "preset";
+  preset_topic: string | null;
+  preset_description: string | null;
+  start_time: string;
+  duration_mins: number;
+};
+
+type ActiveBookingWindow = {
+  availability_slot_id: number;
+  start_time: string;
+  duration_mins: number;
+};
+
+type PreparedBooking = {
+  slot: BookingSlotRow;
+  topic: string;
+  description: string | null;
+  numParticipants: number;
+  note: string | null;
+};
+
 function getEndTime(startTime: string, durationMins: number) {
-  return new Date(new Date(startTime).getTime() + durationMins * 60_000).getTime();
+  return new Date(
+    new Date(startTime).getTime() + durationMins * 60_000,
+  ).getTime();
 }
 
 function overlaps(
@@ -46,23 +74,68 @@ async function syncSlotBookedState(
   );
 }
 
-export async function createBooking(
+async function syncCompletedAcceptedBookings(
   db: DatabaseClient,
-  menteeId: number,
-  input: unknown,
+  input: { menteeId?: number; mentorId?: number } = {},
 ) {
-  const payload = bookingCreateSchema.parse(input);
-  const slot = await db.get<{
+  const params: Array<number | string> = [];
+  const filters: string[] = [];
+
+  if (typeof input.menteeId === "number") {
+    filters.push("b.mentee_id = ?");
+    params.push(input.menteeId);
+  }
+
+  if (typeof input.mentorId === "number") {
+    filters.push("b.mentor_id = ?");
+    params.push(input.mentorId);
+  }
+
+  const acceptedBookings = await db.all<{
     id: number;
-    mentor_id: number;
-    is_booked: number;
-    max_participants: number;
-    booking_mode: "open" | "preset";
-    preset_topic: string | null;
-    preset_description: string | null;
+    availability_slot_id: number;
     start_time: string;
     duration_mins: number;
   }>(
+    `
+      SELECT
+        b.id,
+        b.availability_slot_id,
+        s.start_time,
+        s.duration_mins
+      FROM bookings b
+      JOIN availability_slots s ON s.id = b.availability_slot_id
+      WHERE b.status = 'accepted'${filters.length > 0 ? ` AND ${filters.join(" AND ")}` : ""}
+    `,
+    params,
+  );
+
+  const now = Date.now();
+  const completedBookingIds = acceptedBookings
+    .filter(
+      (booking) => getEndTime(booking.start_time, booking.duration_mins) <= now,
+    )
+    .map((booking) => booking.id);
+
+  if (completedBookingIds.length === 0) {
+    return;
+  }
+
+  const updatedAt = new Date().toISOString();
+
+  for (const bookingId of completedBookingIds) {
+    await db.run(
+      "UPDATE bookings SET status = 'completed', updated_at = ? WHERE id = ?",
+      [updatedAt, bookingId],
+    );
+  }
+}
+
+async function getSlotForBooking(
+  db: DatabaseClient,
+  availabilitySlotId: number,
+) {
+  return db.get<BookingSlotRow>(
     `
 			SELECT
         id,
@@ -78,8 +151,86 @@ export async function createBooking(
 			WHERE id = ?
 			LIMIT 1
 		`,
-    [payload.availabilitySlotId],
+    [availabilitySlotId],
   );
+}
+
+async function getExistingSlotRequest(
+  db: DatabaseClient,
+  availabilitySlotId: number,
+  menteeId: number,
+) {
+  return db.get<{ id: number }>(
+    `
+      SELECT id
+      FROM bookings
+      WHERE availability_slot_id = ?
+        AND mentee_id = ?
+        AND status IN ('pending', 'accepted')
+      LIMIT 1
+    `,
+    [availabilitySlotId, menteeId],
+  );
+}
+
+async function getActiveBookingWindows(db: DatabaseClient, menteeId: number) {
+  return db.all<ActiveBookingWindow>(
+    `
+      SELECT b.availability_slot_id, s.start_time, s.duration_mins
+      FROM bookings b
+      JOIN availability_slots s ON s.id = b.availability_slot_id
+      WHERE b.mentee_id = ? AND b.status IN ('pending', 'accepted')
+    `,
+    [menteeId],
+  );
+}
+
+function getBookingTopic(
+  slot: BookingSlotRow,
+  topic: string | null | undefined,
+) {
+  return slot.booking_mode === "preset"
+    ? (slot.preset_topic?.trim() ?? "")
+    : (topic?.trim() ?? "");
+}
+
+function assertBookingWindowAvailable(
+  slot: BookingSlotRow,
+  activeBookings: ActiveBookingWindow[],
+) {
+  if (
+    activeBookings.some(
+      (booking) =>
+        booking.availability_slot_id !== slot.id &&
+        overlaps(
+          slot.start_time,
+          slot.duration_mins,
+          booking.start_time,
+          booking.duration_mins,
+        ),
+    )
+  ) {
+    throw new AppError(
+      409,
+      "booking_time_conflict",
+      "You already have another active session request at that time.",
+    );
+  }
+}
+
+async function prepareBooking(
+  db: DatabaseClient,
+  menteeId: number,
+  payload: {
+    availabilitySlotId: number;
+    topic?: string | null;
+    description?: string | null;
+    note?: string | null;
+    numParticipants: number;
+  },
+  activeBookings: ActiveBookingWindow[],
+) {
+  const slot = await getSlotForBooking(db, payload.availabilitySlotId);
 
   if (!slot || slot.is_booked) {
     throw new AppError(
@@ -105,16 +256,10 @@ export async function createBooking(
     );
   }
 
-  const existingSlotRequest = await db.get<{ id: number }>(
-    `
-      SELECT id
-      FROM bookings
-      WHERE availability_slot_id = ?
-        AND mentee_id = ?
-        AND status IN ('pending', 'accepted')
-      LIMIT 1
-    `,
-    [payload.availabilitySlotId, menteeId],
+  const existingSlotRequest = await getExistingSlotRequest(
+    db,
+    payload.availabilitySlotId,
+    menteeId,
   );
 
   if (existingSlotRequest) {
@@ -125,43 +270,9 @@ export async function createBooking(
     );
   }
 
-  const activeBookings = await db.all<{
-    availability_slot_id: number;
-    start_time: string;
-    duration_mins: number;
-  }>(
-    `
-      SELECT b.availability_slot_id, s.start_time, s.duration_mins
-      FROM bookings b
-      JOIN availability_slots s ON s.id = b.availability_slot_id
-      WHERE b.mentee_id = ? AND b.status IN ('pending', 'accepted')
-    `,
-    [menteeId],
-  );
+  assertBookingWindowAvailable(slot, activeBookings);
 
-  if (
-    activeBookings.some(
-      (booking) =>
-        booking.availability_slot_id !== slot.id &&
-        overlaps(
-          slot.start_time,
-          slot.duration_mins,
-          booking.start_time,
-          booking.duration_mins,
-        ),
-    )
-  ) {
-    throw new AppError(
-      409,
-      "booking_time_conflict",
-      "You already have another active session request at that time.",
-    );
-  }
-
-  const topic =
-    slot.booking_mode === "preset"
-      ? slot.preset_topic?.trim() ?? ""
-      : payload.topic?.trim() ?? "";
+  const topic = getBookingTopic(slot, payload.topic);
 
   if (!topic) {
     throw new AppError(
@@ -171,7 +282,24 @@ export async function createBooking(
     );
   }
 
-  const now = new Date().toISOString();
+  return {
+    slot,
+    topic,
+    description:
+      slot.booking_mode === "preset"
+        ? (slot.preset_description ?? null)
+        : (payload.description ?? null),
+    numParticipants: payload.numParticipants,
+    note: payload.note ?? null,
+  } satisfies PreparedBooking;
+}
+
+async function insertPreparedBooking(
+  db: DatabaseClient,
+  menteeId: number,
+  preparedBooking: PreparedBooking,
+  createdAt: string,
+) {
   const insert = await db.run(
     `
 			INSERT INTO bookings (
@@ -181,21 +309,119 @@ export async function createBooking(
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
 		`,
     [
-      topic,
-      slot.booking_mode === "preset"
-        ? slot.preset_description ?? null
-        : payload.description ?? null,
-      payload.availabilitySlotId,
-      now,
-      now,
-      payload.numParticipants,
-      payload.note ?? null,
+      preparedBooking.topic,
+      preparedBooking.description,
+      preparedBooking.slot.id,
+      createdAt,
+      createdAt,
+      preparedBooking.numParticipants,
+      preparedBooking.note,
       menteeId,
-      slot.mentor_id,
+      preparedBooking.slot.mentor_id,
     ],
   );
 
-  return { id: insert.lastRowId, status: "pending" };
+  return { id: insert.lastRowId, status: "pending" as const };
+}
+
+export async function createBooking(
+  db: DatabaseClient,
+  menteeId: number,
+  input: unknown,
+) {
+  const payload = bookingCreateSchema.parse(input);
+  const activeBookings = await getActiveBookingWindows(db, menteeId);
+  const preparedBooking = await prepareBooking(
+    db,
+    menteeId,
+    {
+      availabilitySlotId: payload.availabilitySlotId,
+      topic: payload.topic ?? null,
+      description: payload.description ?? null,
+      note: payload.note ?? null,
+      numParticipants: payload.numParticipants,
+    },
+    activeBookings,
+  );
+
+  return insertPreparedBooking(
+    db,
+    menteeId,
+    preparedBooking,
+    new Date().toISOString(),
+  );
+}
+
+export async function createBookingSeries(
+  db: DatabaseClient,
+  menteeId: number,
+  input: {
+    availabilitySlotIds: number[];
+    topic?: string | null;
+    description?: string | null;
+    note?: string | null;
+    numParticipants?: number;
+  },
+) {
+  const uniqueSlotIds = [
+    ...new Set(
+      input.availabilitySlotIds
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0),
+    ),
+  ];
+
+  if (uniqueSlotIds.length === 0) {
+    throw new AppError(
+      400,
+      "slot_selection_required",
+      "Select at least one upcoming session.",
+    );
+  }
+
+  const numParticipants = Math.max(
+    1,
+    Math.trunc(Number(input.numParticipants ?? 1) || 1),
+  );
+  const activeBookings = await getActiveBookingWindows(db, menteeId);
+  const provisionalWindows = [...activeBookings];
+  const preparedBookings: PreparedBooking[] = [];
+
+  for (const availabilitySlotId of uniqueSlotIds) {
+    const preparedBooking = await prepareBooking(
+      db,
+      menteeId,
+      {
+        availabilitySlotId,
+        topic: input.topic ?? null,
+        description: input.description ?? null,
+        note: input.note ?? null,
+        numParticipants,
+      },
+      provisionalWindows,
+    );
+
+    preparedBookings.push(preparedBooking);
+    provisionalWindows.push({
+      availability_slot_id: preparedBooking.slot.id,
+      start_time: preparedBooking.slot.start_time,
+      duration_mins: preparedBooking.slot.duration_mins,
+    });
+  }
+
+  const createdAt = new Date().toISOString();
+  const createdBookings = [];
+
+  for (const preparedBooking of preparedBookings) {
+    createdBookings.push(
+      await insertPreparedBooking(db, menteeId, preparedBooking, createdAt),
+    );
+  }
+
+  return {
+    count: createdBookings.length,
+    bookings: createdBookings,
+  };
 }
 
 export async function cancelBooking(
@@ -216,9 +442,7 @@ export async function cancelBooking(
       WHERE id = ?
       LIMIT 1
     `,
-    [
-    bookingId,
-    ],
+    [bookingId],
   );
 
   if (!booking) {
@@ -249,6 +473,50 @@ export async function cancelBooking(
   await syncSlotBookedState(db, booking.availability_slot_id, now);
 
   return { ok: true };
+}
+
+export async function completeBooking(
+  db: DatabaseClient,
+  mentorId: number,
+  bookingId: number,
+) {
+  const booking = await db.get<{
+    id: number;
+    mentor_id: number;
+    availability_slot_id: number;
+    status: string;
+  }>(
+    "SELECT id, mentor_id, availability_slot_id, status FROM bookings WHERE id = ? LIMIT 1",
+    [bookingId],
+  );
+
+  if (!booking) {
+    throw new AppError(404, "booking_not_found", "Booking not found");
+  }
+
+  if (booking.mentor_id !== mentorId) {
+    throw new AppError(
+      403,
+      "booking_access_denied",
+      "Unauthorized: You are not the assigned mentor",
+    );
+  }
+
+  if (booking.status !== "accepted") {
+    throw new AppError(
+      400,
+      "booking_not_accepted",
+      "Only accepted sessions can be marked complete.",
+    );
+  }
+
+  const now = new Date().toISOString();
+  await db.run(
+    "UPDATE bookings SET status = 'completed', updated_at = ? WHERE id = ?",
+    [now, bookingId],
+  );
+
+  return { status: "completed" as const };
 }
 
 export async function respondToBooking(
@@ -343,6 +611,11 @@ export async function listBookings(
   userId: number,
   role: "mentee" | "mentor",
 ) {
+  await syncCompletedAcceptedBookings(
+    db,
+    role === "mentee" ? { menteeId: userId } : { mentorId: userId },
+  );
+
   const column = role === "mentee" ? "b.mentee_id" : "b.mentor_id";
   const counterpartJoin = role === "mentee" ? "mentor" : "mentee";
 
@@ -419,16 +692,8 @@ export async function getBookingHistory(
   role: "mentee" | "mentor",
 ) {
   const bookings = await listBookings(db, userId, role);
-  const now = Date.now();
 
   return bookings.filter((booking) => {
-    if (booking.status !== "accepted") {
-      return false;
-    }
-
-    const end =
-      new Date(booking.slot.startTime).getTime() +
-      booking.slot.durationMins * 60 * 1000;
-    return end < now;
+    return booking.status === "completed";
   });
 }

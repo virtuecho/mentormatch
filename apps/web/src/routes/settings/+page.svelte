@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { formatLabel } from '@mentormatch/shared';
 	import { PageHeader, Panel } from '@mentormatch/ui';
 	let { data, form } = $props();
 
@@ -20,6 +21,10 @@
 			return 'Needs updates';
 		}
 
+		if (profile.profile.mentorRequest?.status === 'withdrawn') {
+			return 'Withdrawn';
+		}
+
 		return 'Not submitted';
 	}
 
@@ -28,6 +33,10 @@
 	) {
 		if (mentorRequest?.status === 'rejected') {
 			return 'Update mentor application';
+		}
+
+		if (mentorRequest?.status === 'withdrawn') {
+			return 'Apply again';
 		}
 
 		if (mentorRequest) {
@@ -49,7 +58,9 @@
 		<Panel title="Account">
 			<div class="stack">
 				<p><strong>Email:</strong> {data.profile.email}</p>
-				<p><strong>Current role:</strong> <span class="pill">{data.profile.role}</span></p>
+				<p>
+					<strong>Current role:</strong> <span class="pill">{formatLabel(data.profile.role)}</span>
+				</p>
 				<p><strong>Mentor status:</strong> {getMentorStatusLabel(data.profile)}</p>
 			</div>
 		</Panel>
@@ -66,7 +77,7 @@
 					{#if data.profile.isMentorApproved}
 						<p>Your mentor approval stays active. Existing accepted sessions remain in place.</p>
 						<div class="cta-row">
-							<a class="button primary" href={resolve('/mentor-bookings')}>Open mentor sessions</a>
+							<a class="button primary" href={resolve('/mentor-bookings')}>Open hosted sessions</a>
 							<a class="button secondary" href={resolve('/dashboard')}>Book other mentors</a>
 						</div>
 					{:else}
@@ -133,30 +144,47 @@
 			</form>
 		</Panel>
 
-		<Panel title="Delete account">
-			<form class="form-grid" method="POST" action="?/deleteAccount">
-				<p>This will permanently remove your account, profile, sessions, and requests.</p>
-				<div class="field">
-					<label for="deletePassword">Password</label>
-					<input
-						id="deletePassword"
-						name="password"
-						type="password"
-						autocomplete="current-password"
-						required
-					/>
+		{#if data.profile.role === 'admin'}
+			<Panel title="Account protection">
+				<div class="form-grid">
+					<p>Admin accounts are protected and cannot be deleted from account settings.</p>
+					<p class="subtle">
+						Use a separate non-admin account if you need to test account deletion.
+					</p>
 				</div>
-				<div class="field">
-					<label for="confirmation">Type DELETE to confirm</label>
-					<input id="confirmation" name="confirmation" type="text" placeholder="DELETE" required />
-				</div>
+			</Panel>
+		{:else}
+			<Panel title="Delete account">
+				<form class="form-grid" method="POST" action="?/deleteAccount">
+					<p>This will permanently remove your account, profile, sessions, and requests.</p>
+					<div class="field">
+						<label for="deletePassword">Password</label>
+						<input
+							id="deletePassword"
+							name="password"
+							type="password"
+							autocomplete="current-password"
+							required
+						/>
+					</div>
+					<div class="field">
+						<label for="confirmation">Type DELETE to confirm</label>
+						<input
+							id="confirmation"
+							name="confirmation"
+							type="text"
+							placeholder="DELETE"
+							required
+						/>
+					</div>
 
-				{#if form?.section === 'delete' && form?.message}
-					<p class="form-error">{form.message}</p>
-				{/if}
+					{#if form?.section === 'delete' && form?.message}
+						<p class="form-error">{form.message}</p>
+					{/if}
 
-				<button class="button secondary" type="submit">Delete account</button>
-			</form>
-		</Panel>
+					<button class="button secondary" type="submit">Delete account</button>
+				</form>
+			</Panel>
+		{/if}
 	</div>
 </div>

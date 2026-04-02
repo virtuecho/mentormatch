@@ -56,15 +56,28 @@ Protected pages:
 - every signed-in user can log out from the main navigation
 - account settings now include password changes and account deletion
 - mentor applications are submitted from `/mentor-verification`
+- mentor applications now open from a button-triggered full-width dialog instead of living in a fixed half-page column
+- the mentor application keeps `Professional skills` and `Mentorship areas` as optional free-entry text fields, not required checkbox grids
+- pending mentor applications can be withdrawn by the applicant and resubmitted later
 - mentor applications are reviewed by admin accounts in `/admin/review`
+- admin users can manage all users, public profiles, mentor access, and upcoming slots without changing login email or password
+- admin profile edits are explicitly scoped to the selected user, so saving a managed profile can never overwrite the admin's own profile by mistake
+- after an admin saves someone else's profile, the app redirects back to that same managed profile instead of falling back to the admin's own `/profile` page
+- the profile `Skills` field accepts comma-separated entries and renders each one back out as an individual tag
 - approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
 - mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
+- profile education and experience cards accept partial details now, and completely blank cards are ignored on save
 - mentor availability defaults to the creator's current local time zone, but mentors can switch it before publishing
-- mentors can publish one-off or weekly recurring slots
+- mentors can publish one-off, daily, weekday, weekly, biweekly, or monthly recurring slots
+- recurring availability is stored as separate occurrences so one middle session can be edited or deleted without rewriting the whole series
+- accepted sessions are auto-completed after their scheduled end time, and mentors can also mark them complete early
 - slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
 - booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
 - mentor availability is stored as UTC so it renders correctly per viewer locale
+- the shell switches to a compact expandable navigation on phones so long menus and logout remain reachable
+- the mobile topbar keeps visible spacing below the `Open navigation` control so the first page section does not press against it
+- booking and request cards use denser metadata layouts so long session lists stay scannable on desktop and mobile
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
 Local frontend URL after starting the app:
@@ -126,7 +139,7 @@ The repository uses layered verification:
 - unit tests for feature packages and app-level utilities
 - end-to-end tests for browser-visible flows
 - framework and type checks via `svelte-check` and TypeScript
-- CI runs these checks so account creation, login, logout, settings, mentor review, profile editing, slot creation, booking safeguards, and availability time handling stay covered
+- CI runs these checks so account creation, login, logout, settings, mentor review and withdrawal, profile editing, mobile-safe navigation, recurring slot creation, booking safeguards, and availability time handling stay covered
 
 ## Deployment
 
@@ -188,4 +201,4 @@ After changing a role, sign out and sign back in so the session reflects the upd
 
 ## Architecture
 
-See [ARCHITECTURE.md](/Users/admin/MentorMatch/ARCHITECTURE.md) for the request flow, package responsibilities, and deployment model.
+See [ARCHITECTURE.md](/Users/admin/mentormatch/ARCHITECTURE.md) for the request flow, package responsibilities, and deployment model.

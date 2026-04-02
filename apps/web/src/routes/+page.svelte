@@ -17,7 +17,7 @@
 						Continue mentor application
 					</a>
 				{:else if data.user?.role === 'mentor'}
-					<a class="button primary" href={resolve('/mentor-bookings')}>Open mentor sessions</a>
+					<a class="button primary" href={resolve('/mentor-bookings')}>Open hosted sessions</a>
 				{:else if data.user?.role === 'admin'}
 					<a class="button primary" href={resolve('/admin/review')}>Review applications</a>
 				{:else if data.user}
@@ -34,8 +34,10 @@
 			</div>
 			{#if data.user?.role === 'admin'}
 				<p class="subtle">
-					Admin mode: open the mentor approval queue from
-					<a href={resolve('/admin/review')}>Review applications</a>.
+					Admin mode:
+					<a href={resolve('/admin/review')}>Review applications</a>,
+					<a href={resolve('/admin/mentors')}>manage users</a>, or
+					<a href={resolve('/admin/slots')}>inspect slots</a>.
 				</p>
 			{:else if data.user?.isMentorApproved}
 				<p class="subtle">

@@ -1,10 +1,12 @@
 import { getProfile } from '@mentormatch/feature-profile';
-import { requireDatabase, requireMember } from '$lib/server/http';
+import { requireDatabase, requireUser } from '$lib/server/http';
 
 export async function load({ params, locals }) {
-	requireMember(locals);
+	const user = requireUser(locals);
+	const isAdminView = user.role === 'admin';
 
 	return {
-		member: await getProfile(requireDatabase(locals), Number(params.id))
+		member: await getProfile(requireDatabase(locals), Number(params.id)),
+		isAdminView
 	};
 }

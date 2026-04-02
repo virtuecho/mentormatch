@@ -1,5 +1,5 @@
 import { json, type Cookies } from '@sveltejs/kit';
-import { AppError, type UserRole } from '@mentormatch/shared';
+import { AppError, formatLabel, type UserRole } from '@mentormatch/shared';
 import { ZodError } from 'zod';
 
 export const SESSION_COOKIE_NAME = 'mentormatch_session';
@@ -91,6 +91,36 @@ export function handleApiError(error: unknown) {
 	);
 }
 
+function formatIssuePath(path: (string | number)[]) {
+	if (path.length === 0) {
+		return '';
+	}
+
+	const labelAliases: Record<string, string> = {
+		educations: 'Education',
+		experiences: 'Experience',
+		mentorSkills: 'Skill'
+	};
+	const labels: string[] = [];
+
+	for (const part of path) {
+		if (typeof part === 'number') {
+			const lastIndex = labels.length - 1;
+			if (lastIndex >= 0) {
+				labels[lastIndex] = `${labels[lastIndex]} ${part + 1}`;
+			}
+			continue;
+		}
+
+		const label = labelAliases[part] ?? formatLabel(part);
+		if (label) {
+			labels.push(label);
+		}
+	}
+
+	return labels.join(' ');
+}
+
 export function getFormError(error: unknown, fallbackMessage: string) {
 	if (error instanceof AppError) {
 		return {
@@ -100,9 +130,20 @@ export function getFormError(error: unknown, fallbackMessage: string) {
 	}
 
 	if (error instanceof ZodError) {
+		const issue = error.issues[0];
+		const pathLabel = formatIssuePath(
+			issue?.path.filter(
+				(part): part is string | number => typeof part === 'string' || typeof part === 'number'
+			) ?? []
+		);
+		const message = issue?.message ?? 'Please review the form fields and try again.';
+
 		return {
 			status: 400,
-			message: error.issues[0]?.message ?? 'Please review the form fields and try again.'
+			message:
+				pathLabel && !message.toLowerCase().startsWith(pathLabel.toLowerCase())
+					? `${pathLabel}: ${message}`
+					: message
 		};
 	}
 
