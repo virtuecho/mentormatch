@@ -74,6 +74,63 @@ async function syncSlotBookedState(
   );
 }
 
+async function syncCompletedAcceptedBookings(
+  db: DatabaseClient,
+  input: { menteeId?: number; mentorId?: number } = {},
+) {
+  const params: Array<number | string> = [];
+  const filters: string[] = [];
+
+  if (typeof input.menteeId === "number") {
+    filters.push("b.mentee_id = ?");
+    params.push(input.menteeId);
+  }
+
+  if (typeof input.mentorId === "number") {
+    filters.push("b.mentor_id = ?");
+    params.push(input.mentorId);
+  }
+
+  const acceptedBookings = await db.all<{
+    id: number;
+    availability_slot_id: number;
+    start_time: string;
+    duration_mins: number;
+  }>(
+    `
+      SELECT
+        b.id,
+        b.availability_slot_id,
+        s.start_time,
+        s.duration_mins
+      FROM bookings b
+      JOIN availability_slots s ON s.id = b.availability_slot_id
+      WHERE b.status = 'accepted'${filters.length > 0 ? ` AND ${filters.join(" AND ")}` : ""}
+    `,
+    params,
+  );
+
+  const now = Date.now();
+  const completedBookingIds = acceptedBookings
+    .filter(
+      (booking) => getEndTime(booking.start_time, booking.duration_mins) <= now,
+    )
+    .map((booking) => booking.id);
+
+  if (completedBookingIds.length === 0) {
+    return;
+  }
+
+  const updatedAt = new Date().toISOString();
+
+  for (const bookingId of completedBookingIds) {
+    await db.run(
+      "UPDATE bookings SET status = 'completed', updated_at = ? WHERE id = ?",
+      [updatedAt, bookingId],
+    );
+  }
+}
+
 async function getSlotForBooking(
   db: DatabaseClient,
   availabilitySlotId: number,
@@ -418,6 +475,50 @@ export async function cancelBooking(
   return { ok: true };
 }
 
+export async function completeBooking(
+  db: DatabaseClient,
+  mentorId: number,
+  bookingId: number,
+) {
+  const booking = await db.get<{
+    id: number;
+    mentor_id: number;
+    availability_slot_id: number;
+    status: string;
+  }>(
+    "SELECT id, mentor_id, availability_slot_id, status FROM bookings WHERE id = ? LIMIT 1",
+    [bookingId],
+  );
+
+  if (!booking) {
+    throw new AppError(404, "booking_not_found", "Booking not found");
+  }
+
+  if (booking.mentor_id !== mentorId) {
+    throw new AppError(
+      403,
+      "booking_access_denied",
+      "Unauthorized: You are not the assigned mentor",
+    );
+  }
+
+  if (booking.status !== "accepted") {
+    throw new AppError(
+      400,
+      "booking_not_accepted",
+      "Only accepted sessions can be marked complete.",
+    );
+  }
+
+  const now = new Date().toISOString();
+  await db.run(
+    "UPDATE bookings SET status = 'completed', updated_at = ? WHERE id = ?",
+    [now, bookingId],
+  );
+
+  return { status: "completed" as const };
+}
+
 export async function respondToBooking(
   db: DatabaseClient,
   mentorId: number,
@@ -510,6 +611,11 @@ export async function listBookings(
   userId: number,
   role: "mentee" | "mentor",
 ) {
+  await syncCompletedAcceptedBookings(
+    db,
+    role === "mentee" ? { menteeId: userId } : { mentorId: userId },
+  );
+
   const column = role === "mentee" ? "b.mentee_id" : "b.mentor_id";
   const counterpartJoin = role === "mentee" ? "mentor" : "mentee";
 
@@ -586,16 +692,8 @@ export async function getBookingHistory(
   role: "mentee" | "mentor",
 ) {
   const bookings = await listBookings(db, userId, role);
-  const now = Date.now();
 
   return bookings.filter((booking) => {
-    if (booking.status !== "accepted") {
-      return false;
-    }
-
-    const end =
-      new Date(booking.slot.startTime).getTime() +
-      booking.slot.durationMins * 60 * 1000;
-    return end < now;
+    return booking.status === "completed";
   });
 }

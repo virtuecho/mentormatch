@@ -102,7 +102,14 @@
 
 	function serializeEducations(records: EducationDraft[]): EducationRecord[] {
 		return records
-			.filter((record) => record.university.trim() || record.degree.trim() || record.major.trim())
+			.filter(
+				(record) =>
+					record.university.trim() ||
+					record.degree.trim() ||
+					record.major.trim() ||
+					record.logoUrl.trim() ||
+					record.description.trim()
+			)
 			.map((record) => ({
 				...(record.id ? { id: record.id } : {}),
 				university: record.university.trim(),
@@ -118,7 +125,14 @@
 
 	function serializeExperiences(records: ExperienceDraft[]): ExperienceRecord[] {
 		return records
-			.filter((record) => record.company.trim() || record.position.trim())
+			.filter(
+				(record) =>
+					record.company.trim() ||
+					record.position.trim() ||
+					record.industry.trim() ||
+					record.expertiseText.trim() ||
+					record.description.trim()
+			)
 			.map((record) => ({
 				...(record.id ? { id: record.id } : {}),
 				company: record.company.trim(),
@@ -366,8 +380,8 @@
 						</p>
 					{:else}
 						<p class="subtle field-note">
-							Blank education cards are ignored when you save. If you start one, finish the school,
-							degree, and major fields.
+							Fill only the education details you want to show. Completely blank cards are ignored
+							when you save.
 						</p>
 					{/if}
 
@@ -474,8 +488,8 @@
 						</p>
 					{:else}
 						<p class="subtle field-note">
-							Blank experience cards are ignored when you save. If you start one, finish the company
-							and position fields.
+							Fill only the experience details you want to show. Completely blank cards are ignored
+							when you save.
 						</p>
 					{/if}
 

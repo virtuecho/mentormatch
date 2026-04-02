@@ -463,8 +463,10 @@ export async function listUsersForAdmin(db: DatabaseClient) {
     fullName: user.full_name,
     profileImageUrl: ensureAvatar(user.profile_image_url),
     location: user.location,
-    position: user.latest_position ?? (user.role === "admin" ? "Admin" : "Member"),
-    company: user.latest_company ?? "MentorMatch",
+    position:
+      user.latest_position?.trim() ||
+      (user.role === "admin" ? "Admin" : "Member"),
+    company: user.latest_company?.trim() || "MentorMatch",
     mentorSkills: user.skill_names
       ? user.skill_names.split(",").filter(Boolean)
       : [],

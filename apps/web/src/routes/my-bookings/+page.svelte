@@ -15,8 +15,8 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="My sessions"
-		title="Track your upcoming mentorship sessions"
+		eyebrow="Booked sessions"
+		title="Track your booked mentorship sessions"
 		description="See upcoming sessions, pending requests, and recent updates in one place."
 	/>
 

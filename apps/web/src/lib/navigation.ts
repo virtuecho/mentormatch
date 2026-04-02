@@ -14,7 +14,7 @@ const publicNavigation = [
 const memberNavigationBase = [
 	{ href: '/', label: 'Home' },
 	{ href: '/dashboard', label: 'Find a Mentor' },
-	{ href: '/my-bookings', label: 'My Sessions' },
+	{ href: '/my-bookings', label: 'Booked Sessions' },
 	{ href: '/profile', label: 'Profile' },
 	{ href: '/settings', label: 'Settings' }
 ] as const satisfies readonly NavItem[];
@@ -26,7 +26,7 @@ const menteeNavigation = [
 
 const mentorNavigation = [
 	...memberNavigationBase,
-	{ href: '/mentor-bookings', label: 'Mentor Sessions' },
+	{ href: '/mentor-bookings', label: 'Hosted Sessions' },
 	{ href: '/mentor-verification', label: 'Mentor Status' }
 ] as const satisfies readonly NavItem[];
 

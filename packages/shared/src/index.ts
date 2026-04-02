@@ -364,6 +364,7 @@ export function formatDateTimeLocalInTimeZone(
 const httpUrlSchema = z.url().refine((value) => isValidHttpUrl(value), {
   message: "Please enter a valid URL",
 });
+const optionalRecordString = z.string().trim().max(200).default("");
 
 const optionalUrlSchema = z.preprocess(
   (value) => normalizeHttpUrl(typeof value === "string" ? value : null),
@@ -372,9 +373,9 @@ const optionalUrlSchema = z.preprocess(
 
 export const educationSchema = z.object({
   id: z.number().int().positive().optional(),
-  university: nonEmptyString.max(200),
-  degree: nonEmptyString.max(200),
-  major: nonEmptyString.max(200),
+  university: optionalRecordString,
+  degree: optionalRecordString,
+  major: optionalRecordString,
   startYear: z.number().int().min(1900).max(2100),
   endYear: z.number().int().min(1900).max(2100).nullable().optional(),
   status: z.enum(RECORD_STATUSES).default("on_going"),
@@ -384,8 +385,8 @@ export const educationSchema = z.object({
 
 export const experienceSchema = z.object({
   id: z.number().int().positive().optional(),
-  company: nonEmptyString.max(200),
-  position: nonEmptyString.max(200),
+  company: optionalRecordString,
+  position: optionalRecordString,
   industry: z.string().trim().max(200).nullable().optional(),
   expertise: z.array(z.string().trim().min(1).max(100)).default([]),
   startYear: z.number().int().min(1900).max(2100),

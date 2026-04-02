@@ -69,7 +69,7 @@
 					{#if data.profile.isMentorApproved}
 						<p>Your mentor approval stays active. Existing accepted sessions remain in place.</p>
 						<div class="cta-row">
-							<a class="button primary" href={resolve('/mentor-bookings')}>Open mentor sessions</a>
+							<a class="button primary" href={resolve('/mentor-bookings')}>Open hosted sessions</a>
 							<a class="button secondary" href={resolve('/dashboard')}>Book other mentors</a>
 						</div>
 					{:else}

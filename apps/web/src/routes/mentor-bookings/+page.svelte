@@ -121,8 +121,8 @@
 
 <div class="page">
 	<PageHeader
-		eyebrow="Mentor sessions"
-		title="Manage requests and share your next available time"
+		eyebrow="Hosted sessions"
+		title="Manage hosted sessions and share your next available time"
 		description="Review incoming requests and open new times when you are ready to meet."
 	/>
 
@@ -329,13 +329,13 @@
 					<p>No slots published yet.</p>
 				</div>
 			{:else}
-				<p class="subtle field-note">
+				<p class="subtle field-note slot-list-note">
 					Each row below is one real occurrence. Editing or deleting here affects only that single
 					session.
 				</p>
-				<div class="card-list">
+				<div class="card-list slot-list">
 					{#each data.slots as slot (slot.id)}
-						<article class="detail-card">
+						<article class="detail-card request-card slot-card">
 							<div class="booking-row">
 								<div>
 									<h3>{slot.title ?? 'Mentorship session'}</h3>
@@ -348,25 +348,53 @@
 											: 'Open agenda: mentees can request their own topic'}
 									</p>
 								</div>
-								<span class={`status ${slot.isBooked ? 'accepted' : 'pending'}`}>
-									{slot.isBooked ? 'Booked' : 'Available'}
+								<span
+									class={`status ${slot.bookingStatus === 'completed' ? 'completed' : slot.isBooked ? 'accepted' : 'pending'}`}
+								>
+									{slot.bookingStatus === 'completed'
+										? 'Completed'
+										: slot.isBooked
+											? 'Booked'
+											: 'Available'}
 								</span>
 							</div>
 							{#if slot.note}
 								<p>{slot.note}</p>
 							{/if}
-							<div class="cta-row">
-								<form method="GET" action={resolve('/mentor-bookings')}>
-									<input type="hidden" name="editSlotId" value={slot.id} />
-									<button class="button secondary" type="submit">Edit this session</button>
-								</form>
-								<form method="POST" action="?/deleteSlot">
-									<input type="hidden" name="slotId" value={slot.id} />
-									<button class="button secondary" type="submit">Delete this session</button>
-								</form>
-							</div>
-							{#if form?.section === 'deleteSlot' && form?.slotId === slot.id && form?.message}
-								<p class="form-error">{form.message}</p>
+							{#if slot.currentBookingId && slot.bookingStatus === 'accepted'}
+								<div class="cta-row">
+									<form method="POST" action="?/complete">
+										<input type="hidden" name="bookingId" value={slot.currentBookingId} />
+										<button class="button primary" type="submit">Mark complete</button>
+									</form>
+									<form method="POST" action="?/cancel">
+										<input type="hidden" name="bookingId" value={slot.currentBookingId} />
+										<button class="button secondary" type="submit">Cancel session</button>
+									</form>
+								</div>
+								<p class="subtle field-note">
+									Booked sessions stay locked. Finish or cancel the live booking instead of editing
+									the slot.
+								</p>
+							{:else if slot.bookingStatus === 'completed'}
+								<p class="subtle field-note">
+									This session has been completed and is kept here for record keeping until the time
+									passes.
+								</p>
+							{:else}
+								<div class="cta-row">
+									<form method="GET" action={resolve('/mentor-bookings')}>
+										<input type="hidden" name="editSlotId" value={slot.id} />
+										<button class="button secondary" type="submit">Edit this session</button>
+									</form>
+									<form method="POST" action="?/deleteSlot">
+										<input type="hidden" name="slotId" value={slot.id} />
+										<button class="button secondary" type="submit">Remove availability</button>
+									</form>
+								</div>
+							{/if}
+							{#if (form?.section === 'deleteSlot' && form?.slotId === slot.id && form?.message) || ((form?.section === 'cancel' || form?.section === 'complete') && form?.bookingId === slot.currentBookingId && form?.message)}
+								<p class:form-success={form?.success} class="form-error">{form.message}</p>
 							{/if}
 						</article>
 					{/each}
@@ -449,22 +477,25 @@
 										<button class="button secondary" type="submit">Reject</button>
 									</form>
 								{:else if booking.status === 'accepted'}
+									<form method="POST" action="?/complete">
+										<input type="hidden" name="bookingId" value={booking.id} />
+										<button class="button primary" type="submit">Mark complete</button>
+									</form>
 									<form method="POST" action="?/cancel">
 										<input type="hidden" name="bookingId" value={booking.id} />
-										<button class="button secondary" type="submit">Cancel booking</button>
+										<button class="button secondary" type="submit">Cancel session</button>
 									</form>
 								{/if}
 							</div>
 						</div>
+						{#if (form?.section === 'respond' || form?.section === 'cancel' || form?.section === 'complete') && form?.bookingId === booking.id && form?.message}
+							<p class:form-success={form?.success} class="form-error">{form.message}</p>
+						{/if}
 					</article>
 				{/each}
 			{/if}
 		</section>
 	</Panel>
-
-	{#if (form?.section === 'respond' || form?.section === 'cancel') && form?.message}
-		<p class:form-success={form?.success} class="form-error">{form.message}</p>
-	{/if}
 </div>
 
 <style>
@@ -477,5 +508,13 @@
 
 	.compact-card p {
 		margin: 0;
+	}
+
+	.slot-list-note {
+		margin-bottom: 0.35rem;
+	}
+
+	.slot-card {
+		gap: 0.85rem;
 	}
 </style>

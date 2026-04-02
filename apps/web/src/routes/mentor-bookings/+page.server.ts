@@ -5,7 +5,12 @@ import {
 	getMyAvailability,
 	updateAvailabilitySlot
 } from '@mentormatch/feature-availability';
-import { cancelBooking, listBookings, respondToBooking } from '@mentormatch/feature-bookings';
+import {
+	cancelBooking,
+	completeBooking,
+	listBookings,
+	respondToBooking
+} from '@mentormatch/feature-bookings';
 import {
 	AppError,
 	formatLabel,
@@ -33,6 +38,8 @@ type AvailabilitySlotRow = {
 	max_participants: number;
 	note: string | null;
 	is_booked: number | boolean;
+	current_booking_id: number | null;
+	current_booking_status: 'accepted' | 'completed' | null;
 };
 
 type RepeatRule = 'once' | 'daily' | 'weekdays' | 'weekly' | 'biweekly' | 'monthly';
@@ -178,16 +185,19 @@ export async function load({ locals, url }) {
 		address: slot.address,
 		maxParticipants: slot.max_participants,
 		note: slot.note,
-		isBooked: Boolean(slot.is_booked)
+		isBooked: Boolean(slot.is_booked),
+		currentBookingId: slot.current_booking_id ? Number(slot.current_booking_id) : null,
+		bookingStatus: slot.current_booking_status
 	}));
 	const editingSlotId = Number(url.searchParams.get('editSlotId') ?? 0);
+	const editableSlots = slots.filter((slot) => !slot.isBooked);
 
 	return {
 		bookings: await listBookings(db, user.id, 'mentor'),
 		slots,
 		editingSlot:
 			Number.isInteger(editingSlotId) && editingSlotId > 0
-				? (slots.find((slot) => slot.id === editingSlotId) ?? null)
+				? (editableSlots.find((slot) => slot.id === editingSlotId) ?? null)
 				: null
 	};
 }
@@ -206,12 +216,15 @@ export const actions = {
 
 			return {
 				success: true,
+				section: 'respond',
+				bookingId,
 				message: `Booking ${formatLabel(result.status)}`
 			};
 		} catch (error) {
 			if (error instanceof AppError) {
 				return fail(error.status, {
 					section: 'respond',
+					bookingId,
 					message: error.message
 				});
 			}
@@ -231,19 +244,54 @@ export const actions = {
 			await cancelBooking(requireDatabase(locals), user.id, bookingId);
 			return {
 				success: true,
-				message: 'Accepted booking cancelled'
+				section: 'cancel',
+				bookingId,
+				message: 'Session cancelled'
 			};
 		} catch (error) {
 			if (error instanceof AppError) {
 				return fail(error.status, {
 					section: 'cancel',
+					bookingId,
 					message: error.message
 				});
 			}
 
 			handleApiError(error);
 			return fail(500, {
+				section: 'cancel',
+				bookingId,
 				message: 'Unable to cancel the booking right now'
+			});
+		}
+	},
+	complete: async ({ request, locals }) => {
+		const user = requireApprovedMentor(locals);
+		const form = await request.formData();
+		const bookingId = Number(form.get('bookingId'));
+
+		try {
+			await completeBooking(requireDatabase(locals), user.id, bookingId);
+			return {
+				success: true,
+				section: 'complete',
+				bookingId,
+				message: 'Session marked complete'
+			};
+		} catch (error) {
+			if (error instanceof AppError) {
+				return fail(error.status, {
+					section: 'complete',
+					bookingId,
+					message: error.message
+				});
+			}
+
+			handleApiError(error);
+			return fail(500, {
+				section: 'complete',
+				bookingId,
+				message: 'Unable to complete the session right now'
 			});
 		}
 	},
@@ -419,7 +467,7 @@ export const actions = {
 				success: true,
 				section: 'deleteSlot',
 				slotId,
-				message: 'Availability slot deleted'
+				message: 'Availability removed'
 			};
 		} catch (error) {
 			if (error instanceof AppError) {

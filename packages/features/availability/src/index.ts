@@ -172,12 +172,38 @@ export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
 				address,
 				max_participants,
 				note,
-				is_booked
+				is_booked,
+				(
+					SELECT b.id
+					FROM bookings b
+					WHERE b.availability_slot_id = availability_slots.id
+						AND b.status IN ('accepted', 'completed')
+					ORDER BY
+						CASE b.status
+							WHEN 'accepted' THEN 0
+							ELSE 1
+						END,
+						b.updated_at DESC
+					LIMIT 1
+				) AS current_booking_id,
+				(
+					SELECT b.status
+					FROM bookings b
+					WHERE b.availability_slot_id = availability_slots.id
+						AND b.status IN ('accepted', 'completed')
+					ORDER BY
+						CASE b.status
+							WHEN 'accepted' THEN 0
+							ELSE 1
+						END,
+						b.updated_at DESC
+					LIMIT 1
+				) AS current_booking_status
 			FROM availability_slots
-			WHERE mentor_id = ?
+			WHERE mentor_id = ? AND start_time >= ?
 			ORDER BY start_time ASC
 		`,
-    [mentorId],
+    [mentorId, new Date().toISOString()],
   );
 }
 

@@ -53,6 +53,52 @@ describe("shared helpers", () => {
     });
   });
 
+  it("allows partial education and experience records in profile updates", () => {
+    const payload = profileUpdateSchema.parse({
+      fullName: "Ada Lovelace",
+      bio: null,
+      location: null,
+      phone: null,
+      profileImageUrl: null,
+      linkedinUrl: null,
+      instagramUrl: null,
+      facebookUrl: null,
+      websiteUrl: null,
+      educations: [
+        {
+          university: "University of Melbourne",
+          degree: "",
+          major: "",
+          startYear: 2018,
+          endYear: null,
+          status: "completed",
+        },
+      ],
+      experiences: [
+        {
+          company: "MentorMatch",
+          position: "",
+          industry: "Technology",
+          expertise: [],
+          startYear: 2024,
+          endYear: null,
+          status: "on_going",
+        },
+      ],
+      mentorSkills: [],
+    });
+
+    expect(payload.educations[0]).toMatchObject({
+      university: "University of Melbourne",
+      degree: "",
+      major: "",
+    });
+    expect(payload.experiences[0]).toMatchObject({
+      company: "MentorMatch",
+      position: "",
+    });
+  });
+
   it("normalizes mentor application document links", () => {
     const payload = mentorRequestSchema.parse({
       documentUrl: "docs.example.com/mentor-resume.pdf",

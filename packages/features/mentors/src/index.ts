@@ -23,8 +23,8 @@ function mapMentorCard(row: MentorCardRow) {
     fullName: row.full_name,
     profileImageUrl: ensureAvatar(row.profile_image_url),
     location: row.location,
-    position: row.latest_position ?? "Mentor",
-    company: row.latest_company ?? "MentorMatch",
+    position: row.latest_position?.trim() || "Mentor",
+    company: row.latest_company?.trim() || "MentorMatch",
     mentorSkills: row.skill_names
       ? row.skill_names.split(",").filter(Boolean)
       : [],

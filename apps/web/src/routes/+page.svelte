@@ -17,7 +17,7 @@
 						Continue mentor application
 					</a>
 				{:else if data.user?.role === 'mentor'}
-					<a class="button primary" href={resolve('/mentor-bookings')}>Open mentor sessions</a>
+					<a class="button primary" href={resolve('/mentor-bookings')}>Open hosted sessions</a>
 				{:else if data.user?.role === 'admin'}
 					<a class="button primary" href={resolve('/admin/review')}>Review applications</a>
 				{:else if data.user}

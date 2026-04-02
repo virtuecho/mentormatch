@@ -3,6 +3,7 @@ import type { DatabaseClient, QueryParams, QueryResult } from "@mentormatch/db";
 import type { BookingStatus } from "@mentormatch/shared";
 import { AppError } from "@mentormatch/shared";
 import {
+  completeBooking,
   cancelBooking,
   createBooking,
   createBookingSeries,
@@ -146,6 +147,40 @@ class BookingTestDatabase implements DatabaseClient {
   }
 
   async all<T>(sql: string, params: QueryParams = []): Promise<T[]> {
+    if (
+      sql.includes("FROM bookings b") &&
+      sql.includes(
+        "JOIN availability_slots s ON s.id = b.availability_slot_id",
+      ) &&
+      sql.includes("WHERE b.status = 'accepted'")
+    ) {
+      const menteeFilter = sql.includes("b.mentee_id = ?");
+      const mentorFilter = sql.includes("b.mentor_id = ?");
+      const menteeId = menteeFilter
+        ? Number(params[mentorFilter ? 1 : 0])
+        : null;
+      const mentorId = mentorFilter ? Number(params[0]) : null;
+
+      return this.bookings
+        .filter(
+          (booking) =>
+            booking.status === "accepted" &&
+            (menteeId == null || booking.menteeId === menteeId) &&
+            (mentorId == null || booking.mentorId === mentorId),
+        )
+        .map((booking) => {
+          const slot = this.slots.find(
+            (item) => item.id === booking.availabilitySlotId,
+          )!;
+          return {
+            id: booking.id,
+            availability_slot_id: booking.availabilitySlotId,
+            start_time: slot.startTime,
+            duration_mins: slot.durationMins,
+          };
+        }) as T[];
+    }
+
     if (sql.includes("FROM bookings b") && sql.includes("JOIN profiles p")) {
       const userId = Number(params[0]);
       const filterByMentee = sql.includes("WHERE b.mentee_id = ?");
@@ -263,6 +298,22 @@ class BookingTestDatabase implements DatabaseClient {
       );
       if (booking) {
         booking.status = "cancelled";
+        booking.updatedAt = String(params[0]);
+      }
+
+      return { changes: booking ? 1 : 0, lastRowId: null };
+    }
+
+    if (
+      sql.includes(
+        "UPDATE bookings SET status = 'completed', updated_at = ? WHERE id = ?",
+      )
+    ) {
+      const booking = this.bookings.find(
+        (item) => item.id === Number(params[1]),
+      );
+      if (booking) {
+        booking.status = "completed";
         booking.updatedAt = String(params[0]);
       }
 
@@ -498,6 +549,34 @@ describe("feature-bookings", () => {
     });
   });
 
+  it("allows the same mentee to request a slot again after a rejection", async () => {
+    const db = createBookingTestDatabase();
+
+    db["bookings"].push({
+      id: 99,
+      topic: "First attempt",
+      description: null,
+      availabilitySlotId: 10,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      numParticipants: 1,
+      note: null,
+      menteeId: 2,
+      mentorId: 1,
+      status: "rejected",
+    });
+
+    await expect(
+      createBooking(db, 2, {
+        availabilitySlotId: 10,
+        topic: "Second attempt",
+        numParticipants: 1,
+      }),
+    ).resolves.toMatchObject({
+      status: "pending",
+    });
+  });
+
   it("rejects overlapping active requests for the same mentee", async () => {
     const db = createBookingTestDatabase();
 
@@ -557,6 +636,85 @@ describe("feature-bookings", () => {
       [10],
     );
     expect(slot?.is_booked).toBe(0);
+  });
+
+  it("lets mentors mark accepted sessions as completed early", async () => {
+    const db = createBookingTestDatabase();
+
+    const booking = await createBooking(db, 2, {
+      availabilitySlotId: 10,
+      topic: "Portfolio review",
+      numParticipants: 1,
+    });
+
+    await respondToBooking(db, 1, Number(booking.id), {
+      response: "accepted",
+    });
+
+    const result = await completeBooking(db, 1, Number(booking.id));
+    expect(result.status).toBe("completed");
+
+    const mentorBookings = await listBookings(db, 1, "mentor");
+    expect(
+      mentorBookings.find((currentBooking) => currentBooking.id === booking.id)
+        ?.status,
+    ).toBe("completed");
+  });
+
+  it("auto-completes accepted sessions after their scheduled end time", async () => {
+    const users: User[] = [
+      {
+        id: 1,
+        email: "mentor@example.com",
+        fullName: "Mentor One",
+        profileImageUrl: "https://example.com/mentor.png",
+      },
+      {
+        id: 2,
+        email: "mentee@example.com",
+        fullName: "Mentee One",
+        profileImageUrl: "https://example.com/mentee.png",
+      },
+    ];
+    const slots: Slot[] = [
+      {
+        id: 40,
+        mentorId: 1,
+        title: "Past session",
+        bookingMode: "open",
+        presetTopic: null,
+        presetDescription: null,
+        startTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        durationMins: 60,
+        locationType: "online",
+        city: "Remote",
+        address: "Video call",
+        maxParticipants: 1,
+        note: null,
+        isBooked: 1,
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+    const bookings: Booking[] = [
+      {
+        id: 70,
+        topic: "Past booking",
+        description: null,
+        availabilitySlotId: 40,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        numParticipants: 1,
+        note: null,
+        menteeId: 2,
+        mentorId: 1,
+        status: "accepted",
+      },
+    ];
+    const db = new BookingTestDatabase(users, slots, bookings);
+
+    const mentorBookings = await listBookings(db, 1, "mentor");
+
+    expect(mentorBookings[0]?.status).toBe("completed");
   });
 
   it("rejects over-capacity requests", async () => {

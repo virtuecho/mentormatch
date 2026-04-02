@@ -61,14 +61,15 @@ Protected pages:
 - approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
 - mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
+- profile education and experience cards accept partial details now, and completely blank cards are ignored on save
 - mentor availability defaults to the creator's current local time zone, but mentors can switch it before publishing
 - mentors can publish one-off, daily, weekday, weekly, biweekly, or monthly recurring slots
 - recurring availability is stored as separate occurrences so one middle session can be edited or deleted without rewriting the whole series
+- accepted sessions are auto-completed after their scheduled end time, and mentors can also mark them complete early
 - slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
 - booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
 - mentor availability is stored as UTC so it renders correctly per viewer locale
 - the shell switches to a compact expandable navigation on phones so long menus and logout remain reachable
-- blank education and experience cards are ignored on profile save, while filled records keep schema validation
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
 Local frontend URL after starting the app:
