@@ -368,6 +368,9 @@
 						value={data.profile.profile.mentorSkills.join(', ')}
 						placeholder="Career, Product, Leadership"
 					/>
+					<p class="subtle field-note">
+						Separate skills with commas. Each entry will be shown as its own tag on the profile.
+					</p>
 				</div>
 			</div>
 		</Panel>

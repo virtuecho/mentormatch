@@ -24,6 +24,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - admin accounts review mentor applications on `/admin/review`
 - admin accounts can also manage users, public profile details, mentor access, and upcoming slots from dedicated admin routes
 - admin-managed profile saves post the selected `userId` explicitly and the server revalidates that scope before updating any public profile records
+- the profile `Skills` input stores comma-separated values and the UI renders them back as individual tags
 - `Professional skills` and `Mentorship areas` are optional free-entry fields, and applicants can withdraw a pending request before admin review
 - approved users gain mentor tools while still keeping mentee booking flows
 - profile and application links are normalized to `https://...` before validation
@@ -37,6 +38,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - booking and hosted-session cards use a denser metadata layout so filtering large lists stays readable on smaller screens
 - availability is converted to UTC on submit and rendered back in each viewer's locale
 - the shared app shell collapses navigation on small screens and keeps account actions, including logout, reachable in a mobile menu
+- the mobile shell also preserves bottom spacing under the `Open navigation` control so content does not butt directly against the topbar
 
 ## Repository Structure
 

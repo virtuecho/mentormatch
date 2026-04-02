@@ -255,7 +255,7 @@
     .mobile-topbar {
       display: grid;
       gap: 1rem;
-      padding: 1rem 1rem 0;
+      padding: 1rem 1rem 0.85rem;
       background: rgba(255, 255, 255, 0.8);
       border-bottom: 1px solid rgba(15, 23, 42, 0.08);
       backdrop-filter: blur(18px);

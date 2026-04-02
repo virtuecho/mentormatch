@@ -62,6 +62,7 @@ Protected pages:
 - mentor applications are reviewed by admin accounts in `/admin/review`
 - admin users can manage all users, public profiles, mentor access, and upcoming slots without changing login email or password
 - admin profile edits are explicitly scoped to the selected user, so saving a managed profile can never overwrite the admin's own profile by mistake
+- the profile `Skills` field accepts comma-separated entries and renders each one back out as an individual tag
 - approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
 - mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
@@ -74,6 +75,7 @@ Protected pages:
 - booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
 - mentor availability is stored as UTC so it renders correctly per viewer locale
 - the shell switches to a compact expandable navigation on phones so long menus and logout remain reachable
+- the mobile topbar keeps visible spacing below the `Open navigation` control so the first page section does not press against it
 - booking and request cards use denser metadata layouts so long session lists stay scannable on desktop and mobile
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
