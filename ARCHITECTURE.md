@@ -93,10 +93,13 @@ This package owns:
 - page rendering
 - page loads and actions
 - explicit HTTP APIs under `src/routes/api/*`
+- thin route entrypoints that authenticate, parse request data, call command handlers or feature services, and map the result back to SvelteKit responses
 - request-scoped auth/session wiring in [hooks.server.ts](./apps/web/src/hooks.server.ts)
 - Worker-facing config in [wrangler.jsonc](./apps/web/wrangler.jsonc)
 
 It is the only package that should know about SvelteKit route structure and Worker deployment details.
+
+Within `apps/web`, reusable route-side command handlers and form mappers live under `src/lib/server/*` so the biggest `+page.server.ts` files do not accumulate recurrence, profile parsing, or action orchestration logic directly.
 
 ### `packages/features/*`
 
@@ -113,6 +116,7 @@ These packages own:
 - validation orchestration
 - domain rules
 - service-level logic
+- recurring availability expansion, UTC normalization, and other business rules that should be shared across form actions and API handlers
 - unit tests close to the feature
 
 ### `packages/db`

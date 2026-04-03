@@ -3,7 +3,295 @@ import {
   AppError,
   availabilityCreateSchema,
   ensureAvatar,
+  serializeLocalDateTime,
+  serializeZonedDateTime,
 } from "@mentormatch/shared";
+
+export const AVAILABILITY_REPEAT_RULES = [
+  "once",
+  "daily",
+  "weekdays",
+  "weekly",
+  "biweekly",
+  "monthly",
+] as const;
+
+export type AvailabilityRepeatRule = (typeof AVAILABILITY_REPEAT_RULES)[number];
+
+type LocalDateTimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+};
+
+type AvailabilitySeriesInput = {
+  title?: string | null;
+  bookingMode?: string | null;
+  presetTopic?: string | null;
+  presetDescription?: string | null;
+  startTimeLocal?: string | null;
+  timeZone?: string | null;
+  timezoneOffsetMinutes?: number | string | null;
+  repeatRule?: string | null;
+  repeatCount?: number | string | null;
+  durationMins?: number | string | null;
+  locationType?: string | null;
+  city?: string | null;
+  address?: string | null;
+  maxParticipants?: number | string | null;
+  note?: string | null;
+};
+
+type AvailabilityUpdateInput = Omit<
+  AvailabilitySeriesInput,
+  "repeatRule" | "repeatCount"
+>;
+
+type AvailabilityRow = {
+  id: number;
+  title: string | null;
+  booking_mode: "open" | "preset";
+  preset_topic: string | null;
+  preset_description: string | null;
+  start_time: string;
+  duration_mins: number;
+  location_type: string;
+  city: string;
+  address: string;
+  max_participants: number;
+  note: string | null;
+  is_booked: number | boolean;
+  current_booking_id: number | null;
+  current_booking_status: "accepted" | "completed" | null;
+};
+
+export type HostedAvailabilitySlot = {
+  id: number;
+  title: string | null;
+  bookingMode: "open" | "preset";
+  presetTopic: string | null;
+  presetDescription: string | null;
+  startTime: string;
+  durationMins: number;
+  locationType: string;
+  city: string;
+  address: string;
+  maxParticipants: number;
+  note: string | null;
+  isBooked: boolean;
+  currentBookingId: number | null;
+  bookingStatus: "accepted" | "completed" | null;
+};
+
+function parseRepeatRule(
+  value: string | null | undefined,
+): AvailabilityRepeatRule {
+  const normalized = value?.trim() ?? "";
+  return normalized === "daily" ||
+    normalized === "weekdays" ||
+    normalized === "weekly" ||
+    normalized === "biweekly" ||
+    normalized === "monthly"
+    ? normalized
+    : "once";
+}
+
+function parseLocalDateTime(value: string): LocalDateTimeParts | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value.trim());
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day, hour, minute] = match;
+  return {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+  };
+}
+
+function formatLocalDateTime(parts: LocalDateTimeParts) {
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(
+    2,
+    "0",
+  )}-${String(parts.day).padStart(2, "0")}T${String(parts.hour).padStart(
+    2,
+    "0",
+  )}:${String(parts.minute).padStart(2, "0")}`;
+}
+
+function addDays(
+  parts: LocalDateTimeParts,
+  daysToAdd: number,
+): LocalDateTimeParts {
+  const next = new Date(
+    Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day + daysToAdd,
+      parts.hour,
+      parts.minute,
+    ),
+  );
+
+  return {
+    year: next.getUTCFullYear(),
+    month: next.getUTCMonth() + 1,
+    day: next.getUTCDate(),
+    hour: next.getUTCHours(),
+    minute: next.getUTCMinutes(),
+  };
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function addMonths(
+  parts: LocalDateTimeParts,
+  monthsToAdd: number,
+): LocalDateTimeParts {
+  const monthIndex = parts.month - 1 + monthsToAdd;
+  const year = parts.year + Math.floor(monthIndex / 12);
+  const month = (((monthIndex % 12) + 12) % 12) + 1;
+  const day = Math.min(parts.day, daysInMonth(year, month));
+
+  return {
+    year,
+    month,
+    day,
+    hour: parts.hour,
+    minute: parts.minute,
+  };
+}
+
+function isWeekend(parts: LocalDateTimeParts) {
+  const dayOfWeek = new Date(
+    Date.UTC(parts.year, parts.month - 1, parts.day),
+  ).getUTCDay();
+  return dayOfWeek === 0 || dayOfWeek === 6;
+}
+
+function buildRecurringLocalStartTimes(
+  startTimeLocal: string,
+  repeatRule: AvailabilityRepeatRule,
+  repeatCount: number,
+) {
+  const first = parseLocalDateTime(startTimeLocal);
+
+  if (!first) {
+    return [];
+  }
+
+  const occurrences = [first];
+
+  while (occurrences.length < repeatCount) {
+    const previous = occurrences[occurrences.length - 1];
+    let next: LocalDateTimeParts;
+
+    switch (repeatRule) {
+      case "daily":
+        next = addDays(previous, 1);
+        break;
+      case "weekdays":
+        next = addDays(previous, 1);
+        while (isWeekend(next)) {
+          next = addDays(next, 1);
+        }
+        break;
+      case "weekly":
+        next = addDays(previous, 7);
+        break;
+      case "biweekly":
+        next = addDays(previous, 14);
+        break;
+      case "monthly":
+        next = addMonths(previous, 1);
+        break;
+      default:
+        return [formatLocalDateTime(first)];
+    }
+
+    occurrences.push(next);
+  }
+
+  return occurrences.map(formatLocalDateTime);
+}
+
+function resolveStartTime(
+  startTimeLocal: string | null | undefined,
+  timeZone: string | null | undefined,
+  timezoneOffsetMinutes: number | string | null | undefined,
+) {
+  if (!startTimeLocal?.trim()) {
+    return "";
+  }
+
+  const numericOffset =
+    typeof timezoneOffsetMinutes === "string" && timezoneOffsetMinutes.trim()
+      ? Number(timezoneOffsetMinutes)
+      : typeof timezoneOffsetMinutes === "number"
+        ? timezoneOffsetMinutes
+        : Number.NaN;
+
+  return (
+    serializeZonedDateTime(startTimeLocal, timeZone) ||
+    serializeLocalDateTime(startTimeLocal, numericOffset) ||
+    ""
+  );
+}
+
+function buildAvailabilityPayload(
+  input: AvailabilitySeriesInput,
+  startTime: string,
+) {
+  return {
+    title: input.title?.trim() || "Mentorship Session",
+    bookingMode: input.bookingMode?.trim() === "preset" ? "preset" : "open",
+    presetTopic: input.presetTopic?.trim() || null,
+    presetDescription: input.presetDescription?.trim() || null,
+    startTime,
+    durationMins:
+      typeof input.durationMins === "string"
+        ? Number(input.durationMins)
+        : input.durationMins,
+    locationType: input.locationType?.trim() || "in_person",
+    city: input.city?.trim() ?? "",
+    address: input.address?.trim() ?? "",
+    maxParticipants:
+      typeof input.maxParticipants === "string"
+        ? Number(input.maxParticipants)
+        : (input.maxParticipants ?? 2),
+    note: input.note?.trim() || null,
+  };
+}
+
+function mapHostedAvailability(slot: AvailabilityRow): HostedAvailabilitySlot {
+  return {
+    id: slot.id,
+    title: slot.title,
+    bookingMode: slot.booking_mode,
+    presetTopic: slot.preset_topic,
+    presetDescription: slot.preset_description,
+    startTime: slot.start_time,
+    durationMins: slot.duration_mins,
+    locationType: slot.location_type,
+    city: slot.city,
+    address: slot.address,
+    maxParticipants: slot.max_participants,
+    note: slot.note,
+    isBooked: Boolean(slot.is_booked),
+    currentBookingId: slot.current_booking_id
+      ? Number(slot.current_booking_id)
+      : null,
+    bookingStatus: slot.current_booking_status,
+  };
+}
 
 export async function createAvailabilitySlot(
   db: DatabaseClient,
@@ -207,6 +495,14 @@ export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
   );
 }
 
+export async function getHostedAvailability(
+  db: DatabaseClient,
+  mentorId: number,
+): Promise<HostedAvailabilitySlot[]> {
+  const rows = (await getMyAvailability(db, mentorId)) as AvailabilityRow[];
+  return rows.map(mapHostedAvailability);
+}
+
 export async function listAllAvailabilitySlots(
   db: DatabaseClient,
   input: { mentorId?: number | null } = {},
@@ -407,6 +703,104 @@ export async function deleteAvailabilitySlot(
   );
 
   return { ok: true };
+}
+
+export async function createAvailabilitySeries(
+  db: DatabaseClient,
+  mentorId: number,
+  input: AvailabilitySeriesInput,
+) {
+  const repeatRule = parseRepeatRule(input.repeatRule);
+  const rawRepeatCount =
+    typeof input.repeatCount === "string"
+      ? Number(input.repeatCount)
+      : input.repeatCount;
+  const repeatCount =
+    repeatRule !== "once" && Number.isFinite(rawRepeatCount)
+      ? Math.min(Math.max(Math.trunc(rawRepeatCount ?? 1), 2), 30)
+      : 1;
+  const localStartTimes = buildRecurringLocalStartTimes(
+    input.startTimeLocal?.trim() ?? "",
+    repeatRule,
+    repeatCount,
+  );
+  const startTimes = localStartTimes.map((localStartTime) =>
+    resolveStartTime(
+      localStartTime,
+      input.timeZone,
+      input.timezoneOffsetMinutes,
+    ),
+  );
+
+  if (
+    startTimes.length !== repeatCount ||
+    startTimes.some((startTime) => !startTime)
+  ) {
+    throw new AppError(
+      400,
+      "invalid_availability_start_time",
+      "Please choose a valid start time and time zone",
+    );
+  }
+
+  const placeholders = startTimes.map(() => "?").join(", ");
+  const existingSlots =
+    startTimes.length > 0
+      ? await db.all<{ start_time: string }>(
+          `
+            SELECT start_time
+            FROM availability_slots
+            WHERE mentor_id = ? AND start_time IN (${placeholders})
+          `,
+          [mentorId, ...startTimes],
+        )
+      : [];
+
+  if (existingSlots.length > 0) {
+    throw new AppError(
+      409,
+      "duplicate_availability_slot",
+      "You already have a slot at one of the selected times.",
+    );
+  }
+
+  for (const startTime of startTimes) {
+    await createAvailabilitySlot(
+      db,
+      mentorId,
+      buildAvailabilityPayload(input, startTime),
+    );
+  }
+
+  return { count: startTimes.length };
+}
+
+export async function updateAvailabilitySlotFromLocalInput(
+  db: DatabaseClient,
+  mentorId: number,
+  slotId: number,
+  input: AvailabilityUpdateInput,
+) {
+  const startTime = resolveStartTime(
+    input.startTimeLocal,
+    input.timeZone,
+    input.timezoneOffsetMinutes,
+  );
+
+  if (!startTime) {
+    throw new AppError(
+      400,
+      "invalid_availability_start_time",
+      "Please choose a valid start time and time zone",
+    );
+  }
+
+  return updateAvailabilitySlot(
+    db,
+    mentorId,
+    slotId,
+    buildAvailabilityPayload(input, startTime),
+  );
 }
 
 export async function adminDeleteAvailabilitySlot(

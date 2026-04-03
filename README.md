@@ -9,6 +9,7 @@ MentorMatch is a mentoring platform where people can create an account, find men
 - one runtime target: Cloudflare Workers
 - one primary database binding: `DB` for Cloudflare D1
 - one language across the stack: TypeScript
+- one routing rule of thumb: SvelteKit routes stay thin and delegate heavy form/action logic downward
 
 The active application entrypoint is the SvelteKit Worker app in [apps/web](./apps/web/). Shared business logic, persistence, contracts, and UI primitives live in `packages/*`.
 
@@ -40,6 +41,13 @@ MentorMatch/
 - availability is captured in the mentor's chosen local time zone and normalized to UTC before it is stored
 - recurring publication is expanded into separate slot occurrences so one middle session can be edited or deleted independently
 - viewer-facing pages still regroup matching occurrences into a readable series so the product feels calendar-like without making writes rule-based
+
+## Route Design
+
+- `+page.server.ts` and `+server.ts` files are intended to stay as thin entrypoints: auth, parse, call service, map response
+- route-specific form mappers and command handlers live under `apps/web/src/lib/server`
+- recurrence, time-zone normalization, and availability write orchestration live in `packages/features/availability`
+- profile and settings actions reuse server command modules so form flows are not tightly coupled to one SvelteKit route file
 
 ## Frontend Entry Points
 
