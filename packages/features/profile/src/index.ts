@@ -1,4 +1,4 @@
-import type { DatabaseClient } from "@mentormatch/db";
+import type { BatchStatement, DatabaseClient } from "@mentormatch/db";
 import {
   AppError,
   ensureAvatar,
@@ -56,6 +56,8 @@ type AdminUserListRow = {
   skill_names: string | null;
   latest_request_status: RequestStatus | null;
 };
+
+type ProfileUpdatePayload = ReturnType<typeof profileUpdateSchema.parse>;
 
 function mapSessionUser(row: ProfileRow): SessionUser {
   return {
@@ -183,58 +185,69 @@ export async function getProfile(db: DatabaseClient, userId: number) {
   };
 }
 
-export async function updateProfile(
-  db: DatabaseClient,
+export function parseProfileUpdateInput(input: unknown) {
+  return profileUpdateSchema.parse(input);
+}
+
+export function buildProfileUpdateStatements(
   userId: number,
-  input: unknown,
+  payload: ProfileUpdatePayload,
+  now: string,
 ) {
-  const payload = profileUpdateSchema.parse(input);
-  const now = new Date().toISOString();
-
-  await db.run(
-    `
-			UPDATE profiles
-			SET
-				full_name = ?,
-				bio = ?,
-				location = ?,
-				profile_image_url = ?,
-				linkedin_url = ?,
-				instagram_url = ?,
-				facebook_url = ?,
-				website_url = ?,
-				phone = ?,
-				updated_at = ?
-			WHERE user_id = ?
-		`,
-    [
-      payload.fullName,
-      payload.bio ?? null,
-      payload.location ?? null,
-      payload.profileImageUrl ?? null,
-      payload.linkedinUrl ?? null,
-      payload.instagramUrl ?? null,
-      payload.facebookUrl ?? null,
-      payload.websiteUrl ?? null,
-      payload.phone ?? null,
-      now,
-      userId,
-    ],
-  );
-
-  await db.run("DELETE FROM educations WHERE user_id = ?", [userId]);
-  await db.run("DELETE FROM experiences WHERE user_id = ?", [userId]);
-  await db.run("DELETE FROM mentor_skills WHERE mentor_id = ?", [userId]);
+  const statements: BatchStatement[] = [
+    {
+      sql: `
+        UPDATE profiles
+        SET
+          full_name = ?,
+          bio = ?,
+          location = ?,
+          profile_image_url = ?,
+          linkedin_url = ?,
+          instagram_url = ?,
+          facebook_url = ?,
+          website_url = ?,
+          phone = ?,
+          updated_at = ?
+        WHERE user_id = ?
+      `,
+      params: [
+        payload.fullName,
+        payload.bio ?? null,
+        payload.location ?? null,
+        payload.profileImageUrl ?? null,
+        payload.linkedinUrl ?? null,
+        payload.instagramUrl ?? null,
+        payload.facebookUrl ?? null,
+        payload.websiteUrl ?? null,
+        payload.phone ?? null,
+        now,
+        userId,
+      ],
+    },
+    {
+      sql: "DELETE FROM educations WHERE user_id = ?",
+      params: [userId],
+    },
+    {
+      sql: "DELETE FROM experiences WHERE user_id = ?",
+      params: [userId],
+    },
+    {
+      sql: "DELETE FROM mentor_skills WHERE mentor_id = ?",
+      params: [userId],
+    },
+  ];
 
   for (const education of payload.educations) {
-    await db.run(
-      `
-				INSERT INTO educations (
-					user_id, university, degree, major, start_year, end_year, status, logo_url, description
-				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-			`,
-      [
+    statements.push({
+      sql: `
+        INSERT INTO educations (
+          user_id, university, degree, major, start_year, end_year, status, logo_url, description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      params: [
         userId,
         education.university,
         education.degree,
@@ -245,18 +258,18 @@ export async function updateProfile(
         education.logoUrl ?? null,
         education.description ?? null,
       ],
-    );
+    });
   }
 
   for (const experience of payload.experiences) {
-    await db.run(
-      `
-				INSERT INTO experiences (
-					user_id, company, position, industry, expertise_json, start_year, end_year, status, description
-				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-			`,
-      [
+    statements.push({
+      sql: `
+        INSERT INTO experiences (
+          user_id, company, position, industry, expertise_json, start_year, end_year, status, description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      params: [
         userId,
         experience.company,
         experience.position,
@@ -267,15 +280,28 @@ export async function updateProfile(
         experience.status,
         experience.description ?? null,
       ],
-    );
+    });
   }
 
   for (const skill of payload.mentorSkills) {
-    await db.run(
-      "INSERT INTO mentor_skills (mentor_id, skill_name) VALUES (?, ?)",
-      [userId, skill],
-    );
+    statements.push({
+      sql: "INSERT INTO mentor_skills (mentor_id, skill_name) VALUES (?, ?)",
+      params: [userId, skill],
+    });
   }
+
+  return statements;
+}
+
+export async function updateProfile(
+  db: DatabaseClient,
+  userId: number,
+  input: unknown,
+) {
+  const payload = parseProfileUpdateInput(input);
+  const now = new Date().toISOString();
+
+  await db.batch(buildProfileUpdateStatements(userId, payload, now));
 
   return getProfile(db, userId);
 }

@@ -1,6 +1,7 @@
 import type { DatabaseClient } from '@mentormatch/db';
 import type { EducationRecord, ExperienceRecord } from '@mentormatch/shared';
-import { adminUpdateUser, getProfile, updateProfile } from '@mentormatch/feature-profile';
+import { updateUserProfileAsAdmin } from '@mentormatch/feature-admin';
+import { getProfile, updateProfile } from '@mentormatch/feature-profile';
 import { parseRecordArray, parsePositiveUserId } from '$lib/server/form';
 import { failWithFormError } from '$lib/server/http';
 
@@ -66,14 +67,15 @@ export async function handleProfileSaveAction(
 	db: DatabaseClient,
 	user: SessionUser,
 	url: URL,
-	form: FormData
+	form: FormData,
+	requestId?: string
 ) {
 	const targetUserId = getManagedProfileTargetUserId(url, user, form);
 	const payload = buildProfileUpdatePayload(form);
 
 	try {
 		if (user.role === 'admin') {
-			await adminUpdateUser(db, targetUserId, payload);
+			await updateUserProfileAsAdmin(db, { id: user.id, requestId }, targetUserId, payload);
 		} else {
 			await updateProfile(db, targetUserId, payload);
 		}

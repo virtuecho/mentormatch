@@ -28,7 +28,12 @@ export function readAuthSecret(event: Parameters<Handle>[0]['event']): string | 
 	return null;
 }
 
+export function createRequestId(request: Request) {
+	return request.headers.get('x-request-id')?.trim() || crypto.randomUUID();
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
+	event.locals.requestId = createRequestId(event.request);
 	event.locals.db = event.platform?.env?.DB ? createD1Client(event.platform.env.DB) : null;
 	event.locals.authSecret = readAuthSecret(event);
 	event.locals.user =
@@ -40,5 +45,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				)
 			: null;
 
-	return resolve(event);
+	const response = await resolve(event);
+	response.headers.set('x-request-id', event.locals.requestId);
+	return response;
 };

@@ -26,6 +26,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - the mentor application is launched from a full-width dialog so the review form is not constrained to a half-page column
 - admin accounts review mentor applications on `/admin/review`
 - admin accounts can also manage users, public profile details, mentor access, and upcoming slots from dedicated admin routes
+- admin mutations are routed through a dedicated admin feature package so review, role changes, managed profile edits, and slot removals can share audit and permission rules
 - admin-managed profile saves post the selected `userId` explicitly and the server revalidates that scope before updating any public profile records
 - successful admin edits redirect back to the same managed `/profile?userId=...` route so the post-save page state stays attached to the edited user
 - the profile `Skills` input stores comma-separated values and the UI renders them back as individual tags
@@ -57,7 +58,7 @@ MentorMatch/
 │       └── wrangler.jsonc      # Worker configuration and D1 binding
 ├── packages/
 │   ├── db/                     # D1 client, SQL helpers, migrations
-│   ├── features/               # auth, mentors, availability, bookings, profile
+│   ├── features/               # auth, admin, mentors, availability, bookings, profile
 │   ├── shared/                 # contracts, schemas, errors, shared types
 │   ├── ui/                     # reusable Svelte components
 │   └── config/                 # shared toolchain config
@@ -75,6 +76,7 @@ The current deployment target is:
 - one Worker script: `mentormatch`
 - one D1 binding: `DB`
 - one SvelteKit app build output under `apps/web/.svelte-kit/cloudflare`
+- one wrapper Worker entrypoint at `apps/web/worker-entry.ts` that handles both `fetch()` and scheduled cron invocations
 
 The repository root exposes a deployable [wrangler.jsonc](./wrangler.jsonc).
 
@@ -96,6 +98,8 @@ This package owns:
 - explicit HTTP APIs under `src/routes/api/*`
 - thin route entrypoints that authenticate, parse request data, call command handlers or feature services, and map the result back to SvelteKit responses
 - request-scoped auth/session wiring in [hooks.server.ts](./apps/web/src/hooks.server.ts)
+- request-scoped request-id generation plus `x-request-id` response propagation in [hooks.server.ts](./apps/web/src/hooks.server.ts)
+- structured Worker-side logging helpers in `src/lib/server/log.ts`
 - Worker-facing config in [wrangler.jsonc](./apps/web/wrangler.jsonc)
 
 It is the only package that should know about SvelteKit route structure and Worker deployment details.
@@ -107,6 +111,7 @@ Within `apps/web`, reusable route-side command handlers and form mappers live un
 Feature packages hold business logic by domain:
 
 - `auth`
+- `admin`
 - `profile`
 - `mentors`
 - `availability`
@@ -118,6 +123,7 @@ These packages own:
 - domain rules
 - service-level logic
 - recurring availability expansion, UTC normalization, and other business rules that should be shared across form actions and API handlers
+- admin review and moderation commands, including audit-backed user, mentor, and slot management
 - unit tests close to the feature
 
 ### `packages/db`
@@ -155,6 +161,7 @@ Core persistence lives in Cloudflare D1 and follows a small relational model:
 - `mentor_skills` stores public skill tags shown on mentor cards and profiles.
 - `availability_slots` stores each bookable mentor occurrence as its own row.
 - `bookings` stores mentee requests against one slot, including request lifecycle state.
+- `audit_logs` stores admin-side moderation events, actor identifiers, request ids, and compact JSON metadata for reviewable writes.
 - `sessions` stores active login sessions.
 
 ```mermaid
@@ -166,6 +173,7 @@ erDiagram
     users ||--o{ mentor_skills : tags
     users ||--o{ availability_slots : publishes
     availability_slots ||--o{ bookings : receives
+    users ||--o{ audit_logs : "acts as admin"
     users ||--o{ bookings : "books as mentee"
     users ||--o{ bookings : "hosts as mentor"
     users ||--o{ sessions : authenticates
@@ -178,6 +186,7 @@ erDiagram
 - Recurring publication is materialized into separate `availability_slots` rows up front, not stored as one RRULE-only record.
 - Read-side UI can still group matching occurrences into a visible series, but write-side operations remain occurrence-scoped.
 - `availability_slots.is_booked` is treated as a database-maintained read model derived from accepted bookings, while booking status remains the source of truth.
+- admin moderation is audited as its own write stream so privileged actions can be reconstructed without relying on ad hoc request logs alone.
 
 Why this matters:
 
@@ -264,6 +273,12 @@ The Worker currently expects:
 - `AUTH_SECRET` for session/auth operations
 - a cron trigger that invokes the shared `scheduled()` handler every 15 minutes in UTC
 
+Operationally, the app also relies on:
+
+- request ids generated in `hooks.server.ts` and returned as `x-request-id`
+- structured JSON logs for admin actions and scheduled booking completion
+- audit rows in D1 for privileged admin mutations that change mentor approval, public profile records, or slot inventory
+
 If `DB` or `AUTH_SECRET` are missing, public pages can still render basic content, but authenticated flows and data-backed operations will be limited.
 
 ## Testing Strategy
@@ -277,7 +292,7 @@ The current workspace uses:
 - `pnpm build`
 
 Coverage is split so feature logic can be tested separately from browser-visible flows.
-The current test suite covers signup, login, logout, settings, mentor application review and withdrawal, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
+The current test suite covers signup, login, logout, settings, mentor application review and withdrawal, admin-managed profile scope, audit-backed admin commands, profile link normalization, recurring availability creation, booking guardrails, and the mentor/mentee routing rules that connect them.
 
 ## CI/CD
 

@@ -150,6 +150,10 @@ class ProfilePageTestDatabase implements DatabaseClient {
 			return { changes: 1, lastRowId: null };
 		}
 
+		if (sql.includes('INSERT INTO audit_logs')) {
+			return { changes: 1, lastRowId: 1 };
+		}
+
 		throw new Error(`Unexpected run query: ${sql} :: ${JSON.stringify(params)}`);
 	}
 

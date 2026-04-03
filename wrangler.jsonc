@@ -3,25 +3,25 @@
   "name": "mentormatch",
   "compatibility_date": "2026-03-29",
   "compatibility_flags": ["nodejs_als"],
-  "main": "apps/web/worker.ts",
+  "main": "apps/web/worker-entry.ts",
   "assets": {
     "binding": "ASSETS",
-    "directory": "apps/web/.svelte-kit/cloudflare"
+    "directory": "apps/web/.svelte-kit/cloudflare",
   },
   "triggers": {
-    "crons": ["*/15 * * * *"]
+    "crons": ["*/15 * * * *"],
   },
   "workers_dev": true,
   "preview_urls": true,
   "build": {
-    "command": "pnpm build"
+    "command": "pnpm build",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "mentormatch",
       "database_id": "0739cea4-a421-4209-a282-a77c86626eac",
-      "migrations_dir": "packages/db/migrations"
-    }
-  ]
+      "migrations_dir": "packages/db/migrations",
+    },
+  ],
 }

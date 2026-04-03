@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 
 export const SESSION_COOKIE_NAME = 'mentormatch_session';
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+type AppPermission = 'admin:review_applications' | 'admin:manage_users' | 'admin:manage_slots';
 
 export function requireDatabase(locals: App.Locals) {
 	if (!locals.db) {
@@ -34,6 +35,22 @@ export function requireRole(locals: App.Locals, role: UserRole) {
 
 	if (user.role !== role) {
 		throw new AppError(403, 'forbidden', `This action requires the ${role} role`);
+	}
+
+	return user;
+}
+
+const ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
+	admin: ['admin:review_applications', 'admin:manage_users', 'admin:manage_slots'],
+	mentor: [],
+	mentee: []
+};
+
+export function requirePermission(locals: App.Locals, permission: AppPermission) {
+	const user = requireUser(locals);
+
+	if (!ROLE_PERMISSIONS[user.role].includes(permission)) {
+		throw new AppError(403, 'forbidden', `Missing permission: ${permission}`);
 	}
 
 	return user;

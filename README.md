@@ -22,7 +22,7 @@ MentorMatch/
 ├── packages/
 │   ├── config/                 # Shared toolchain configuration
 │   ├── db/                     # D1 client, schema, migrations, persistence helpers
-│   ├── features/               # Auth, mentors, availability, bookings, profile
+│   ├── features/               # Auth, admin, mentors, availability, bookings, profile
 │   ├── shared/                 # Contracts, schemas, types, utilities
 │   └── ui/                     # Reusable Svelte UI components
 ├── tests/                      # Integration, fixtures, end-to-end test folders
@@ -48,6 +48,13 @@ MentorMatch/
 - route-specific form mappers and command handlers live under `apps/web/src/lib/server`
 - recurrence, time-zone normalization, and availability write orchestration live in `packages/features/availability`
 - profile and settings actions reuse server command modules so form flows are not tightly coupled to one SvelteKit route file
+- admin review, user management, and slot moderation route actions delegate to `packages/features/admin` so audited moderation rules are not duplicated across pages
+
+## Admin And Observability Model
+
+- admin access is checked as explicit permissions such as `admin:review_applications`, `admin:manage_users`, and `admin:manage_slots`
+- admin writes that review applications, change mentor access, update another user's public profile, or remove slots also insert `audit_logs` rows in D1
+- each request receives an `x-request-id`, and Worker-side server code emits structured JSON logs so admin actions and scheduled jobs can be traced in production
 
 ## Frontend Entry Points
 
@@ -92,6 +99,7 @@ Protected pages:
 - slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
 - booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
 - the booking write path relies on database constraints plus batched updates so slot state and request state stay aligned during accept, cancel, and multi-slot booking actions
+- admin moderation flows run through an explicit admin feature package and write audit records for mentor review, mentor promotion or revocation, managed profile edits, and slot removal
 - mentor availability is stored as UTC so it renders correctly per viewer locale
 - the shell switches to a compact expandable navigation on phones so long menus and logout remain reachable
 - the mobile topbar keeps visible spacing below the `Open navigation` control so the first page section does not press against it
@@ -157,7 +165,7 @@ The repository uses layered verification:
 - unit tests for feature packages and app-level utilities
 - end-to-end tests for browser-visible flows
 - framework and type checks via `svelte-check` and TypeScript
-- CI runs these checks so account creation, login, logout, settings, mentor review and withdrawal, profile editing, mobile-safe navigation, recurring slot creation, booking safeguards, and availability time handling stay covered
+- CI runs these checks so account creation, login, logout, settings, mentor review and withdrawal, admin-managed profile scope, audit-backed admin actions, mobile-safe navigation, recurring slot creation, booking safeguards, and availability time handling stay covered
 
 ## Deployment
 
@@ -168,6 +176,7 @@ Important points:
 - the Worker name is `mentormatch`
 - the Worker build upload command is exposed at the repo root as `pnpm cf:upload`
 - root-level [wrangler.jsonc](./wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
+- `apps/web/worker-entry.ts` is the Worker wrapper entrypoint that forwards fetch traffic into SvelteKit and handles the scheduled booking-completion cron
 - `pnpm cf:upload` and `npx wrangler versions upload` both use the root Wrangler config, which runs `pnpm build` before uploading
 - D1 migrations are sourced from `packages/db/migrations` through `migrations_dir` in the Wrangler config
 - the D1 binding name is `DB`

@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { isActionFailure, redirect } from '@sveltejs/kit';
 import { handleProfileSaveAction, loadProfilePage } from '$lib/server/profile-page';
 import { requireDatabase, requireUser } from '$lib/server/http';
 
@@ -14,8 +14,13 @@ export const actions = {
 			requireDatabase(locals),
 			user,
 			url,
-			await request.formData()
+			await request.formData(),
+			locals.requestId
 		);
+
+		if (isActionFailure(result)) {
+			return result;
+		}
 
 		if ('targetUserId' in result && result.managedByAdmin) {
 			throw redirect(303, `/profile?userId=${result.targetUserId}&updated=1`);
