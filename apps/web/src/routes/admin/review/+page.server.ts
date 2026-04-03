@@ -4,11 +4,25 @@ import { listAdminMentorRequests, reviewMentorRequestAsAdmin } from '@mentormatc
 import { requireDatabase, requirePermission } from '$lib/server/http';
 import { getRequestLogContext, logError, logInfo } from '$lib/server/log';
 
-export async function load({ locals }) {
+export async function load({ locals, url }) {
 	requirePermission(locals, 'admin:review_applications');
+	const result = await listAdminMentorRequests(requireDatabase(locals), {
+		q: url.searchParams.get('q') ?? '',
+		status: url.searchParams.get('status') ?? 'all',
+		sort: url.searchParams.get('sort') ?? 'status_then_submitted',
+		page: url.searchParams.get('page') ?? '1'
+	});
 
 	return {
-		requests: await listAdminMentorRequests(requireDatabase(locals))
+		requests: result.items,
+		filters: result.filters,
+		pagination: {
+			page: result.page,
+			pageSize: result.pageSize,
+			total: result.total,
+			totalPages: result.totalPages
+		},
+		summary: result.summary
 	};
 }
 

@@ -19,10 +19,25 @@ function parseMentorId(value: string | null) {
 export async function load({ locals, url }) {
 	requirePermission(locals, 'admin:manage_slots');
 	const mentorId = parseMentorId(url.searchParams.get('mentorId'));
+	const result = await listAdminAvailabilitySlots(requireDatabase(locals), {
+		mentorId: mentorId ?? undefined,
+		q: url.searchParams.get('q') ?? '',
+		status: url.searchParams.get('status') ?? 'all',
+		sort: url.searchParams.get('sort') ?? 'start_asc',
+		page: url.searchParams.get('page') ?? '1'
+	});
 
 	return {
 		selectedMentorId: mentorId,
-		slots: await listAdminAvailabilitySlots(requireDatabase(locals), { mentorId })
+		slots: result.items,
+		filters: result.filters,
+		pagination: {
+			page: result.page,
+			pageSize: result.pageSize,
+			total: result.total,
+			totalPages: result.totalPages
+		},
+		summary: result.summary
 	};
 }
 

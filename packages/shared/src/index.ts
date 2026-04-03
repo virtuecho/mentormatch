@@ -121,6 +121,14 @@ export interface BookingRecord {
   };
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 const nonEmptyString = z.string().trim().min(1);
 const optionalNullableString = z
   .string()
@@ -450,6 +458,39 @@ export const mentorSearchSchema = z.object({
   city: z.string().trim().max(120).optional().default(""),
   tag: z.string().trim().max(120).optional().default(""),
   limit: z.coerce.number().int().min(1).max(50).optional().default(12),
+});
+
+const adminListPageSchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).optional().default(12),
+});
+
+export const adminUserListSchema = adminListPageSchema.extend({
+  q: z.string().trim().max(120).optional().default(""),
+  role: z.enum(["all", "admin", "mentor", "mentee"]).optional().default("all"),
+  sort: z
+    .enum(["role_then_name", "name_asc", "name_desc", "newest"])
+    .optional()
+    .default("role_then_name"),
+});
+
+export const adminMentorRequestListSchema = adminListPageSchema.extend({
+  q: z.string().trim().max(120).optional().default(""),
+  status: z
+    .enum(["all", "pending", "approved", "rejected", "withdrawn"])
+    .optional()
+    .default("all"),
+  sort: z
+    .enum(["status_then_submitted", "submitted_desc", "submitted_asc"])
+    .optional()
+    .default("status_then_submitted"),
+});
+
+export const adminSlotListSchema = adminListPageSchema.extend({
+  q: z.string().trim().max(120).optional().default(""),
+  mentorId: z.coerce.number().int().positive().optional(),
+  status: z.enum(["all", "open", "booked"]).optional().default("all"),
+  sort: z.enum(["start_asc", "start_desc"]).optional().default("start_asc"),
 });
 
 export const availabilityCreateSchema = z

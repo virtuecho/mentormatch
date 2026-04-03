@@ -168,6 +168,20 @@ select {
 	min-width: 6.75rem;
 }
 
+.results-meta,
+.pagination-summary {
+	margin: 0;
+}
+
+.pagination-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8rem;
+	margin-top: 1rem;
+}
+
 .hero {
 	display: grid;
 	gap: 1rem;
@@ -439,6 +453,10 @@ select {
 
 	.search-actions .button {
 		width: 100%;
+	}
+
+	.pagination-row {
+		align-items: stretch;
 	}
 
 	.booking-meta-grid {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminMentorRequestListSchema,
+  adminSlotListSchema,
+  adminUserListSchema,
   availabilityCreateSchema,
   formatLabel,
   formatDateTimeLocalInTimeZone,
@@ -207,5 +210,26 @@ describe("shared helpers", () => {
         presetDescription: null,
       }),
     ).toThrowError(/20 or fewer/i);
+  });
+
+  it("parses admin list query defaults and clamps paging input", () => {
+    expect(adminUserListSchema.parse({})).toMatchObject({
+      role: "all",
+      sort: "role_then_name",
+      page: 1,
+      pageSize: 12,
+    });
+    expect(
+      adminMentorRequestListSchema.parse({ status: "pending", page: "2" }),
+    ).toMatchObject({
+      status: "pending",
+      page: 2,
+    });
+    expect(
+      adminSlotListSchema.parse({ mentorId: "7", sort: "start_desc" }),
+    ).toMatchObject({
+      mentorId: 7,
+      sort: "start_desc",
+    });
   });
 });

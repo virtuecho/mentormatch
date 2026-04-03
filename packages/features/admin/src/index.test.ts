@@ -3,6 +3,8 @@ import type { DatabaseClient, QueryParams, QueryResult } from "@mentormatch/db";
 import {
   approveMentorAsAdmin,
   deleteAvailabilitySlotAsAdmin,
+  listAdminMentorRequests,
+  listAdminUsers,
   reviewMentorRequestAsAdmin,
   revokeMentorAsAdmin,
   updateUserProfileAsAdmin,
@@ -283,6 +285,69 @@ class AdminTestDatabase implements DatabaseClient {
   }
 
   async all<T>(sql: string, params: QueryParams = []): Promise<T[]> {
+    if (
+      sql.includes("FROM mentor_requests r") &&
+      sql.includes("JOIN users u ON u.id = r.user_id") &&
+      sql.includes("JOIN profiles p ON p.user_id = u.id")
+    ) {
+      return this.mentorRequests.map((request) => {
+        const user = this.users.find((item) => item.id === request.user_id)!;
+        const profile = this.profiles.find(
+          (item) => item.user_id === request.user_id,
+        )!;
+
+        return {
+          id: request.id,
+          status: request.status,
+          document_url: request.document_url,
+          note: request.note,
+          submitted_at: request.submitted_at,
+          reviewed_at: request.reviewed_at,
+          user_id: user.id,
+          email: user.email,
+          role: user.role,
+          full_name: profile.full_name,
+          profile_image_url: profile.profile_image_url,
+        };
+      }) as T[];
+    }
+
+    if (
+      sql.includes("FROM users u") &&
+      sql.includes("JOIN profiles p ON p.user_id = u.id")
+    ) {
+      return this.users.map((user) => {
+        const profile = this.profiles.find((item) => item.user_id === user.id)!;
+        const latestExperience = [...this.experiences]
+          .filter((item) => item.user_id === user.id)
+          .sort((left, right) => right.start_year - left.start_year)[0];
+        const latestRequest = [...this.mentorRequests]
+          .filter((item) => item.user_id === user.id)
+          .sort((left, right) =>
+            right.submitted_at.localeCompare(left.submitted_at),
+          )[0];
+        const skillNames = this.mentorSkills
+          .filter((item) => item.mentor_id === user.id)
+          .map((item) => item.skill_name)
+          .join(",");
+
+        return {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          is_mentor_approved: user.is_mentor_approved,
+          full_name: profile.full_name,
+          profile_image_url: profile.profile_image_url,
+          location: profile.location,
+          latest_position: latestExperience?.position ?? null,
+          latest_company: latestExperience?.company ?? null,
+          latest_expertise_json: latestExperience?.expertise_json ?? null,
+          skill_names: skillNames || null,
+          latest_request_status: latestRequest?.status ?? null,
+        };
+      }) as T[];
+    }
+
     if (sql.includes("FROM educations")) {
       return this.educations
         .filter((item) => item.user_id === Number(params[0]))
@@ -511,6 +576,72 @@ class AdminTestDatabase implements DatabaseClient {
 }
 
 describe("feature-admin", () => {
+  it("filters and paginates admin users", async () => {
+    const db = new AdminTestDatabase();
+    db.users.push({
+      id: 4,
+      email: "zoe@example.com",
+      role: "mentee",
+      is_mentor_approved: 0,
+    });
+    db.profiles.push({
+      user_id: 4,
+      full_name: "Zoe Member",
+      bio: null,
+      location: "London",
+      profile_image_url: null,
+      linkedin_url: null,
+      instagram_url: null,
+      facebook_url: null,
+      website_url: null,
+      phone: null,
+    });
+
+    const result = await listAdminUsers(db, {
+      role: "mentee",
+      q: "member",
+      sort: "name_desc",
+      pageSize: 1,
+      page: 1,
+    });
+
+    expect(result.summary).toMatchObject({
+      totalUsers: 4,
+      members: 2,
+      matchingUsers: 2,
+    });
+    expect(result.total).toBe(2);
+    expect(result.totalPages).toBe(2);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.fullName).toBe("Zoe Member");
+  });
+
+  it("filters mentor requests by status and search query", async () => {
+    const db = new AdminTestDatabase();
+    db.mentorRequests.push({
+      id: 8,
+      user_id: 3,
+      document_url: "",
+      note: "Approved already",
+      status: "approved",
+      submitted_at: "2026-04-02T00:00:00.000Z",
+      reviewed_at: "2026-04-02T01:00:00.000Z",
+    });
+
+    const pending = await listAdminMentorRequests(db, {
+      status: "pending",
+    });
+    const approved = await listAdminMentorRequests(db, {
+      q: "mentor@example.com",
+      status: "approved",
+    });
+
+    expect(pending.total).toBe(1);
+    expect(pending.items[0]?.status).toBe("pending");
+    expect(approved.total).toBe(1);
+    expect(approved.items[0]?.user.email).toBe("mentor@example.com");
+  });
+
   it("reviews mentor requests and writes an audit log", async () => {
     const db = new AdminTestDatabase();
 

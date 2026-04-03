@@ -8,8 +8,12 @@ import {
   parseProfileUpdateInput,
 } from "@mentormatch/feature-profile";
 import {
+  adminMentorRequestListSchema,
+  adminSlotListSchema,
+  adminUserListSchema,
   AppError,
   mentorRequestReviewSchema,
+  type PaginatedResult,
   type RequestStatus,
   type UserRole,
 } from "@mentormatch/shared";
@@ -27,6 +31,99 @@ type AuditAction =
   | "admin.slot.deleted";
 
 type TargetType = "user" | "mentor_request" | "availability_slot";
+
+type AdminUserRecord = Awaited<ReturnType<typeof listUsersForAdmin>>[number];
+type AdminMentorRequestRecord = Awaited<
+  ReturnType<typeof listMentorRequests>
+>[number];
+type AdminSlotRecord = Awaited<
+  ReturnType<typeof listAllAvailabilitySlots>
+>[number];
+
+function paginateItems<T>(
+  items: T[],
+  page: number,
+  pageSize: number,
+): PaginatedResult<T> {
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+
+  return {
+    items: items.slice(startIndex, startIndex + pageSize),
+    total,
+    page: currentPage,
+    pageSize,
+    totalPages,
+  };
+}
+
+function getAdminUserBucket(user: AdminUserRecord) {
+  if (user.role === "admin") {
+    return "admin" as const;
+  }
+
+  return user.isMentorApproved ? ("mentor" as const) : ("mentee" as const);
+}
+
+function getAdminUserBucketRank(bucket: ReturnType<typeof getAdminUserBucket>) {
+  switch (bucket) {
+    case "admin":
+      return 0;
+    case "mentor":
+      return 1;
+    default:
+      return 2;
+  }
+}
+
+function buildAdminUserSummary(users: AdminUserRecord[]) {
+  return {
+    totalUsers: users.length,
+    admins: users.filter((user) => getAdminUserBucket(user) === "admin").length,
+    mentors: users.filter((user) => getAdminUserBucket(user) === "mentor")
+      .length,
+    members: users.filter((user) => getAdminUserBucket(user) === "mentee")
+      .length,
+  };
+}
+
+function getRequestStatusRank(status: RequestStatus) {
+  switch (status) {
+    case "pending":
+      return 0;
+    case "approved":
+      return 1;
+    case "rejected":
+      return 2;
+    case "withdrawn":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
+function buildMentorRequestSummary(requests: AdminMentorRequestRecord[]) {
+  return {
+    totalRequests: requests.length,
+    pending: requests.filter((request) => request.status === "pending").length,
+    approved: requests.filter((request) => request.status === "approved")
+      .length,
+    rejected: requests.filter((request) => request.status === "rejected")
+      .length,
+    withdrawn: requests.filter((request) => request.status === "withdrawn")
+      .length,
+  };
+}
+
+function buildSlotSummary(slots: AdminSlotRecord[]) {
+  return {
+    totalSlots: slots.length,
+    open: slots.filter((slot) => !slot.isBooked).length,
+    booked: slots.filter((slot) => slot.isBooked).length,
+  };
+}
 
 function buildAuditStatement(input: {
   actor: AdminActor;
@@ -55,19 +152,186 @@ function buildAuditStatement(input: {
   };
 }
 
-export async function listAdminUsers(db: DatabaseClient) {
-  return listUsersForAdmin(db);
+export async function listAdminUsers(db: DatabaseClient, input: unknown = {}) {
+  const filters = adminUserListSchema.parse(input);
+  const users = await listUsersForAdmin(db);
+  const summary = buildAdminUserSummary(users);
+  const normalizedQuery = filters.q.toLowerCase();
+
+  const filtered = users
+    .filter((user) =>
+      filters.role === "all" ? true : getAdminUserBucket(user) === filters.role,
+    )
+    .filter((user) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [
+        user.fullName,
+        user.email,
+        user.location ?? "",
+        user.position,
+        user.company,
+        ...user.mentorSkills,
+        ...user.expertise,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+
+  filtered.sort((left, right) => {
+    switch (filters.sort) {
+      case "name_asc":
+        return (
+          left.fullName.localeCompare(right.fullName) || left.id - right.id
+        );
+      case "name_desc":
+        return (
+          right.fullName.localeCompare(left.fullName) || right.id - left.id
+        );
+      case "newest":
+        return right.id - left.id;
+      default: {
+        const roleComparison =
+          getAdminUserBucketRank(getAdminUserBucket(left)) -
+            getAdminUserBucketRank(getAdminUserBucket(right)) ||
+          left.fullName.localeCompare(right.fullName);
+        return roleComparison || left.id - right.id;
+      }
+    }
+  });
+
+  const page = paginateItems(filtered, filters.page, filters.pageSize);
+
+  return {
+    ...page,
+    filters,
+    summary: {
+      ...summary,
+      matchingUsers: filtered.length,
+    },
+  };
 }
 
-export async function listAdminMentorRequests(db: DatabaseClient) {
-  return listMentorRequests(db);
+export async function listAdminMentorRequests(
+  db: DatabaseClient,
+  input: unknown = {},
+) {
+  const filters = adminMentorRequestListSchema.parse(input);
+  const requests = await listMentorRequests(db);
+  const summary = buildMentorRequestSummary(requests);
+  const normalizedQuery = filters.q.toLowerCase();
+
+  const filtered = requests
+    .filter((request) =>
+      filters.status === "all" ? true : request.status === filters.status,
+    )
+    .filter((request) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [
+        request.user.fullName,
+        request.user.email,
+        request.note ?? "",
+        request.documentUrl ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+
+  filtered.sort((left, right) => {
+    switch (filters.sort) {
+      case "submitted_asc":
+        return left.submittedAt.localeCompare(right.submittedAt);
+      case "submitted_desc":
+        return right.submittedAt.localeCompare(left.submittedAt);
+      default: {
+        const statusComparison =
+          getRequestStatusRank(left.status) -
+          getRequestStatusRank(right.status);
+        return (
+          statusComparison ||
+          right.submittedAt.localeCompare(left.submittedAt) ||
+          right.id - left.id
+        );
+      }
+    }
+  });
+
+  const page = paginateItems(filtered, filters.page, filters.pageSize);
+
+  return {
+    ...page,
+    filters,
+    summary: {
+      ...summary,
+      matchingRequests: filtered.length,
+    },
+  };
 }
 
 export async function listAdminAvailabilitySlots(
   db: DatabaseClient,
-  input: { mentorId?: number | null } = {},
+  input: unknown = {},
 ) {
-  return listAllAvailabilitySlots(db, input);
+  const filters = adminSlotListSchema.parse(input);
+  const slots = await listAllAvailabilitySlots(db, {
+    mentorId: filters.mentorId ?? null,
+  });
+  const summary = buildSlotSummary(slots);
+  const normalizedQuery = filters.q.toLowerCase();
+
+  const filtered = slots
+    .filter((slot) => {
+      switch (filters.status) {
+        case "booked":
+          return slot.isBooked;
+        case "open":
+          return !slot.isBooked;
+        default:
+          return true;
+      }
+    })
+    .filter((slot) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return [
+        slot.title ?? "",
+        slot.city,
+        slot.address,
+        slot.note ?? "",
+        slot.presetTopic ?? "",
+        slot.mentor.fullName,
+        slot.mentor.email,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+
+  filtered.sort((left, right) =>
+    filters.sort === "start_desc"
+      ? right.startTime.localeCompare(left.startTime)
+      : left.startTime.localeCompare(right.startTime),
+  );
+
+  const page = paginateItems(filtered, filters.page, filters.pageSize);
+
+  return {
+    ...page,
+    filters,
+    summary: {
+      ...summary,
+      matchingSlots: filtered.length,
+    },
+  };
 }
 
 export async function reviewMentorRequestAsAdmin(

@@ -8,15 +8,25 @@ import { AppError } from '@mentormatch/shared';
 import { requireDatabase, requirePermission } from '$lib/server/http';
 import { getRequestLogContext, logError, logInfo } from '$lib/server/log';
 
-export async function load({ locals }) {
+export async function load({ locals, url }) {
 	requirePermission(locals, 'admin:manage_users');
-	const users = await listAdminUsers(requireDatabase(locals));
+	const result = await listAdminUsers(requireDatabase(locals), {
+		q: url.searchParams.get('q') ?? '',
+		role: url.searchParams.get('role') ?? 'all',
+		sort: url.searchParams.get('sort') ?? 'role_then_name',
+		page: url.searchParams.get('page') ?? '1'
+	});
 
 	return {
-		users,
-		admins: users.filter((user) => user.role === 'admin'),
-		mentors: users.filter((user) => user.isMentorApproved),
-		members: users.filter((user) => user.role !== 'admin' && !user.isMentorApproved)
+		users: result.items,
+		filters: result.filters,
+		pagination: {
+			page: result.page,
+			pageSize: result.pageSize,
+			total: result.total,
+			totalPages: result.totalPages
+		},
+		summary: result.summary
 	};
 }
 
