@@ -88,7 +88,7 @@ Protected pages:
 - mentor availability defaults to the creator's current local time zone, but mentors can switch it before publishing
 - mentors can publish one-off, daily, weekday, weekly, biweekly, or monthly recurring slots
 - recurring availability is stored as separate occurrences so one middle session can be edited or deleted without rewriting the whole series
-- accepted sessions are auto-completed after their scheduled end time, and mentors can also mark them complete early
+- accepted sessions are auto-completed after their scheduled end time by a Cloudflare cron job, and mentors can also mark them complete early
 - slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
 - booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
 - the booking write path relies on database constraints plus batched updates so slot state and request state stay aligned during accept, cancel, and multi-slot booking actions

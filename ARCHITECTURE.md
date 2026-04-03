@@ -36,7 +36,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - availability defaults to the mentor's current browser time zone, but the mentor can switch to another IANA time zone before publishing
 - mentors can create either a one-off slot or a recurring series using daily, weekday, weekly, biweekly, or monthly presets
 - recurring slots are persisted as separate occurrences so a single middle session can be edited or deleted independently
-- accepted sessions automatically become completed after their scheduled end time, and mentors can manually complete them earlier when needed
+- accepted sessions automatically become completed after their scheduled end time through a Cloudflare scheduled job, and mentors can manually complete them earlier when needed
 - slots support two booking modes: preset mentor agenda or open topic chosen by the mentee
 - booking rules prevent duplicate same-slot requests, overlapping active mentee requests, and multiple accepted bookings on a single slot
 - booking mutations use database-backed constraints and batched writes so accept/cancel flows update request state and slot occupancy together
@@ -262,6 +262,7 @@ The Worker currently expects:
 - `DB` for D1
 - `ASSETS` for static assets
 - `AUTH_SECRET` for session/auth operations
+- a cron trigger that invokes the shared `scheduled()` handler every 15 minutes in UTC
 
 If `DB` or `AUTH_SECRET` are missing, public pages can still render basic content, but authenticated flows and data-backed operations will be limited.
 

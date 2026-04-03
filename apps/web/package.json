@@ -20,7 +20,7 @@
 		"dev": "vite dev",
 		"dev:e2e": "vite dev --host 127.0.0.1 --port 4173 --strictPort",
 		"build": "pnpm exec vite build",
-		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173 --inspector-port 0",
+		"preview": "wrangler dev worker.ts --port 4173 --inspector-port 0",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -31,7 +31,7 @@
 		"test:e2e": "playwright test",
 		"gen": "wrangler types",
 		"cf:deploy": "wrangler deploy",
-		"cf:preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --local --port 4173"
+		"cf:preview": "wrangler dev worker.ts --local --port 4173"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",
