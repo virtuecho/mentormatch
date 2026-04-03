@@ -85,7 +85,7 @@ Protected pages:
 - pending mentor applications can be withdrawn by the applicant and resubmitted later
 - mentor applications are reviewed by admin accounts in `/admin/review`
 - admin users can manage all users, public profiles, mentor access, and upcoming slots without changing login email or password
-- admin review, user, and slot pages now support built-in search, filtering, sorting, and pagination so the management surface scales beyond demo-sized lists
+- admin review, user, and slot pages now support built-in search, filtering, sorting, pagination, and consistent apply/clear filter controls so the management surface scales beyond demo-sized lists
 - admin profile edits are explicitly scoped to the selected user, so saving a managed profile can never overwrite the admin's own profile by mistake
 - after an admin saves someone else's profile, the app redirects back to that same managed profile instead of falling back to the admin's own `/profile` page
 - the profile `Skills` field accepts comma-separated entries and renders each one back out as an individual tag

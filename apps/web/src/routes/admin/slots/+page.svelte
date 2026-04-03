@@ -37,7 +37,7 @@
 	</div>
 
 	<Panel title="Filter slots">
-		<form class="form-grid" method="GET">
+		<form class="form-grid" method="GET" id="slot-filter-form">
 			{#if data.selectedMentorId}
 				<input type="hidden" name="mentorId" value={data.selectedMentorId} />
 			{/if}
@@ -71,19 +71,22 @@
 						<option value="start_desc">Latest first</option>
 					</select>
 				</div>
-				<div class="cta-row search-actions">
-					<button class="button primary action-button" type="submit">Apply filters</button>
-				</div>
 			</div>
 		</form>
 
-		<div class="cta-row search-actions">
-			<form method="GET" action={resolve('/admin/slots')}>
-				{#if data.selectedMentorId}
-					<input type="hidden" name="mentorId" value={data.selectedMentorId} />
-				{/if}
-				<button class="button secondary action-button" type="submit">Clear filters</button>
-			</form>
+		<form method="GET" action={resolve('/admin/slots')} id="slot-clear-form">
+			{#if data.selectedMentorId}
+				<input type="hidden" name="mentorId" value={data.selectedMentorId} />
+			{/if}
+		</form>
+
+		<div class="cta-row search-actions filter-panel-actions filter-panel-footer">
+			<button class="button primary action-button" type="submit" form="slot-filter-form">
+				Apply filters
+			</button>
+			<button class="button secondary action-button" type="submit" form="slot-clear-form">
+				Clear filters
+			</button>
 		</div>
 
 		<p class="subtle results-meta">

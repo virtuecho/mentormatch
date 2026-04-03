@@ -27,7 +27,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - admin accounts review mentor applications on `/admin/review`
 - admin accounts can also manage users, public profile details, mentor access, and upcoming slots from dedicated admin routes
 - admin mutations are routed through a dedicated admin feature package so review, role changes, managed profile edits, and slot removals can share audit and permission rules
-- admin list screens expose search, filter, sort, and pagination controls so moderation does not depend on loading every record into one flat page
+- admin list screens expose search, filter, sort, pagination, and consistent apply/clear controls so moderation does not depend on loading every record into one flat page
 - admin-managed profile saves post the selected `userId` explicitly and the server revalidates that scope before updating any public profile records
 - successful admin edits redirect back to the same managed `/profile?userId=...` route so the post-save page state stays attached to the edited user
 - the profile `Skills` input stores comma-separated values and the UI renders them back as individual tags

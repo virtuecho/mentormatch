@@ -60,7 +60,7 @@
 					<label for="time">Preferred time</label>
 					<input id="time" name="time" type="time" value={data.filters.time} />
 				</div>
-				<div class="cta-row search-actions">
+				<div class="cta-row search-actions filter-panel-actions">
 					<button class="button primary action-button" type="submit">Search mentors</button>
 					<a class="button secondary action-button" href={resolve('/dashboard')}>Clear filters</a>
 				</div>

@@ -76,7 +76,7 @@
 						<option value="newest">Newest accounts first</option>
 					</select>
 				</div>
-				<div class="cta-row search-actions">
+				<div class="cta-row search-actions filter-panel-actions">
 					<button class="button primary action-button" type="submit">Apply filters</button>
 					<a class="button secondary action-button" href={resolve('/admin/mentors')}
 						>Clear filters</a
