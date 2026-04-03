@@ -10,7 +10,7 @@ MentorMatch is a mentoring platform where people can create an account, find men
 - one primary database binding: `DB` for Cloudflare D1
 - one language across the stack: TypeScript
 
-The active application entrypoint is the SvelteKit Worker app in [apps/web](/Users/admin/MentorMatch/apps/web). Shared business logic, persistence, contracts, and UI primitives live in `packages/*`.
+The active application entrypoint is the SvelteKit Worker app in [apps/web](./apps/web/). Shared business logic, persistence, contracts, and UI primitives live in `packages/*`.
 
 ## Workspace Layout
 
@@ -25,12 +25,21 @@ MentorMatch/
 │   ├── shared/                 # Contracts, schemas, types, utilities
 │   └── ui/                     # Reusable Svelte UI components
 ├── tests/                      # Integration, fixtures, end-to-end test folders
-├── docs/                       # Supporting docs and ADR folders
 ├── .github/workflows/          # CI/CD workflows
 ├── pnpm-workspace.yaml
 ├── turbo.json
 └── package.json
 ```
+
+## Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) covers system boundaries, package responsibilities, database relationships, state transitions, and request flow.
+
+## Scheduling Model
+
+- availability is captured in the mentor's chosen local time zone and normalized to UTC before it is stored
+- recurring publication is expanded into separate slot occurrences so one middle session can be edited or deleted independently
+- viewer-facing pages still regroup matching occurrences into a readable series so the product feels calendar-like without making writes rule-based
 
 ## Frontend Entry Points
 
@@ -149,7 +158,7 @@ Important points:
 
 - the Worker name is `mentormatch`
 - the Worker build upload command is exposed at the repo root as `pnpm cf:upload`
-- root-level [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
+- root-level [wrangler.jsonc](./wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
 - `pnpm cf:upload` and `npx wrangler versions upload` both use the root Wrangler config, which runs `pnpm build` before uploading
 - D1 migrations are sourced from `packages/db/migrations` through `migrations_dir` in the Wrangler config
 - the D1 binding name is `DB`
@@ -201,4 +210,4 @@ After changing a role, sign out and sign back in so the session reflects the upd
 
 ## Architecture
 
-See [ARCHITECTURE.md](/Users/admin/mentormatch/ARCHITECTURE.md) for the request flow, package responsibilities, and deployment model.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the request flow, package responsibilities, deployment model, data relationships, and state transitions.

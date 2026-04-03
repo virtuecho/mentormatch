@@ -2,14 +2,17 @@
 
 MentorMatch is organized as a single-deploy full-stack workspace. The active application is a SvelteKit Worker in `apps/web`, while database access, business rules, contracts, and UI building blocks are isolated into separate packages.
 
-## High-Level Model
+## System Overview
 
-```text
-Browser
-  -> apps/web page, action, or API route
-    -> packages/features/*
-      -> packages/db
-        -> Cloudflare D1
+```mermaid
+flowchart LR
+    Browser["Browser"] --> Web["apps/web<br/>SvelteKit on Cloudflare Workers"]
+    Web --> Features["packages/features/*<br/>domain services"]
+    Web --> UI["packages/ui<br/>shared Svelte components"]
+    Features --> Shared["packages/shared<br/>schemas, types, utilities"]
+    Features --> DB["packages/db<br/>D1 access + migrations"]
+    DB --> D1[("Cloudflare D1")]
+    Web --> Session["cookies + session lookup"]
 ```
 
 Only `apps/web` is deployed. Everything under `packages/*` is bundled into that Worker as internal dependencies.
@@ -72,7 +75,7 @@ The current deployment target is:
 - one D1 binding: `DB`
 - one SvelteKit app build output under `apps/web/.svelte-kit/cloudflare`
 
-The repository root exposes a deployable [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc).
+The repository root exposes a deployable [wrangler.jsonc](./wrangler.jsonc).
 
 The root upload path is:
 
@@ -90,8 +93,8 @@ This package owns:
 - page rendering
 - page loads and actions
 - explicit HTTP APIs under `src/routes/api/*`
-- request-scoped auth/session wiring in [hooks.server.ts](/Users/admin/MentorMatch/apps/web/src/hooks.server.ts)
-- Worker-facing config in [wrangler.jsonc](/Users/admin/MentorMatch/apps/web/wrangler.jsonc)
+- request-scoped auth/session wiring in [hooks.server.ts](./apps/web/src/hooks.server.ts)
+- Worker-facing config in [wrangler.jsonc](./apps/web/wrangler.jsonc)
 
 It is the only package that should know about SvelteKit route structure and Worker deployment details.
 
@@ -136,6 +139,46 @@ This package contains framework-agnostic shared code:
 
 This package contains reusable Svelte UI primitives used across the Worker app.
 
+## Data Model
+
+Core persistence lives in Cloudflare D1 and follows a small relational model:
+
+- `users` is the identity root for account role, approval state, and session ownership.
+- `profiles` stores public-facing profile fields in a one-to-one extension of `users`.
+- `educations` and `experiences` are child records under a profile.
+- `mentor_requests` stores mentor application submissions and review outcomes.
+- `mentor_skills` stores public skill tags shown on mentor cards and profiles.
+- `availability_slots` stores each bookable mentor occurrence as its own row.
+- `bookings` stores mentee requests against one slot, including request lifecycle state.
+- `sessions` stores active login sessions.
+
+```mermaid
+erDiagram
+    users ||--|| profiles : has
+    profiles ||--o{ educations : includes
+    profiles ||--o{ experiences : includes
+    users ||--o{ mentor_requests : submits
+    users ||--o{ mentor_skills : tags
+    users ||--o{ availability_slots : publishes
+    availability_slots ||--o{ bookings : receives
+    users ||--o{ bookings : "books as mentee"
+    users ||--o{ bookings : "hosts as mentor"
+    users ||--o{ sessions : authenticates
+```
+
+## Time And Recurrence Model
+
+- Availability is captured as `local datetime + IANA time zone` in the UI, then converted to UTC before persistence.
+- `availability_slots.start_time` is the canonical comparison field for sorting, overlap checks, and booking enforcement.
+- Recurring publication is materialized into separate `availability_slots` rows up front, not stored as one RRULE-only record.
+- Read-side UI can still group matching occurrences into a visible series, but write-side operations remain occurrence-scoped.
+
+Why this matters:
+
+- UTC storage removes ambiguous cross-time-zone comparisons at booking time.
+- Materialized occurrences let mentors edit or delete one middle session without introducing exception tables.
+- Booking state is naturally per occurrence, which fits accepted, cancelled, and completed flows better than mutating a single recurrence rule.
+
 ## Request Flows
 
 ### Public Page
@@ -171,6 +214,40 @@ Browser or client
       -> packages/db
         -> D1
 ```
+
+## State Flows
+
+### Mentor Application
+
+```mermaid
+flowchart LR
+    Draft["Draft / no application"] --> Pending["Pending review"]
+    Pending --> Approved["Approved"]
+    Pending --> Rejected["Rejected"]
+    Pending --> Withdrawn["Withdrawn by applicant"]
+    Rejected --> Pending
+    Withdrawn --> Pending
+    Approved --> Mentor["Mentor tools enabled"]
+```
+
+### Booking Lifecycle
+
+```mermaid
+flowchart LR
+    Available["Slot available"] --> Pending["Booking pending"]
+    Pending --> Accepted["Accepted"]
+    Pending --> Rejected["Rejected"]
+    Pending --> Available
+    Accepted --> Completed["Completed"]
+    Accepted --> Cancelled["Cancelled"]
+    Rejected --> Available
+    Cancelled --> Available
+```
+
+Notes:
+
+- Rejected and cancelled requests do not permanently retire a slot.
+- Accepted bookings mark the slot as booked; completed sessions are produced automatically after the scheduled end time or manually by the mentor earlier.
 
 ## Runtime Bindings
 
