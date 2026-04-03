@@ -15,6 +15,7 @@ type UserRow = {
   email: string;
   role: "mentee" | "mentor" | "admin";
   is_mentor_approved: number;
+  created_at: string;
 };
 
 type ProfileRow = {
@@ -91,18 +92,26 @@ class AdminTestDatabase implements DatabaseClient {
   private nextEducationId = 10;
   private nextExperienceId = 10;
   users: UserRow[] = [
-    { id: 1, email: "admin@example.com", role: "admin", is_mentor_approved: 1 },
+    {
+      id: 1,
+      email: "admin@example.com",
+      role: "admin",
+      is_mentor_approved: 1,
+      created_at: "2026-01-01T00:00:00.000Z",
+    },
     {
       id: 2,
       email: "member@example.com",
       role: "mentee",
       is_mentor_approved: 0,
+      created_at: "2026-03-01T00:00:00.000Z",
     },
     {
       id: 3,
       email: "mentor@example.com",
       role: "mentor",
       is_mentor_approved: 1,
+      created_at: "2026-02-01T00:00:00.000Z",
     },
   ];
   profiles: ProfileRow[] = [
@@ -336,6 +345,7 @@ class AdminTestDatabase implements DatabaseClient {
           email: user.email,
           role: user.role,
           is_mentor_approved: user.is_mentor_approved,
+          created_at: user.created_at,
           full_name: profile.full_name,
           profile_image_url: profile.profile_image_url,
           location: profile.location,
@@ -583,6 +593,7 @@ describe("feature-admin", () => {
       email: "zoe@example.com",
       role: "mentee",
       is_mentor_approved: 0,
+      created_at: "2026-04-01T00:00:00.000Z",
     });
     db.profiles.push({
       user_id: 4,
@@ -614,6 +625,59 @@ describe("feature-admin", () => {
     expect(result.totalPages).toBe(2);
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.fullName).toBe("Zoe Member");
+  });
+
+  it("sorts admin users by created_at when newest is selected", async () => {
+    const db = new AdminTestDatabase();
+    db.users.push({
+      id: 4,
+      email: "older-id@example.com",
+      role: "mentee",
+      is_mentor_approved: 0,
+      created_at: "2025-12-01T00:00:00.000Z",
+    });
+    db.users.push({
+      id: 0,
+      email: "newer-time@example.com",
+      role: "mentee",
+      is_mentor_approved: 0,
+      created_at: "2026-06-01T00:00:00.000Z",
+    });
+    db.profiles.push({
+      user_id: 4,
+      full_name: "Older Id",
+      bio: null,
+      location: "Remote",
+      profile_image_url: null,
+      linkedin_url: null,
+      instagram_url: null,
+      facebook_url: null,
+      website_url: null,
+      phone: null,
+    });
+    db.profiles.push({
+      user_id: 0,
+      full_name: "Newer Time",
+      bio: null,
+      location: "Remote",
+      profile_image_url: null,
+      linkedin_url: null,
+      instagram_url: null,
+      facebook_url: null,
+      website_url: null,
+      phone: null,
+    });
+
+    const result = await listAdminUsers(db, {
+      role: "mentee",
+      sort: "newest",
+    });
+
+    expect(result.items.map((item) => item.fullName)).toEqual([
+      "Newer Time",
+      "Member User",
+      "Older Id",
+    ]);
   });
 
   it("filters mentor requests by status and search query", async () => {

@@ -73,7 +73,7 @@
 						<option value="role_then_name">Role then name</option>
 						<option value="name_asc">Name A to Z</option>
 						<option value="name_desc">Name Z to A</option>
-						<option value="newest">Newest accounts first</option>
+						<option value="newest">Newest account created first</option>
 					</select>
 				</div>
 				<div class="cta-row search-actions filter-panel-actions">

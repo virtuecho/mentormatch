@@ -192,7 +192,7 @@ export async function listAdminUsers(db: DatabaseClient, input: unknown = {}) {
           right.fullName.localeCompare(left.fullName) || right.id - left.id
         );
       case "newest":
-        return right.id - left.id;
+        return right.createdAt.localeCompare(left.createdAt) || right.id - left.id;
       default: {
         const roleComparison =
           getAdminUserBucketRank(getAdminUserBucket(left)) -

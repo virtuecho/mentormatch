@@ -47,6 +47,7 @@ type AdminUserListRow = {
   email: string;
   role: UserRole;
   is_mentor_approved: number;
+  created_at: string;
   full_name: string;
   profile_image_url: string | null;
   location: string | null;
@@ -499,6 +500,7 @@ export async function listUsersForAdmin(db: DatabaseClient) {
 				u.email,
 				u.role,
 				u.is_mentor_approved,
+				u.created_at,
 				p.full_name,
 				p.profile_image_url,
 				p.location,
@@ -553,6 +555,7 @@ export async function listUsersForAdmin(db: DatabaseClient) {
     email: user.email,
     role: user.role,
     isMentorApproved: Boolean(user.is_mentor_approved),
+    createdAt: user.created_at,
     fullName: user.full_name,
     profileImageUrl: ensureAvatar(user.profile_image_url),
     location: user.location,

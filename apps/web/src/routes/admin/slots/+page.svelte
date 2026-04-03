@@ -65,10 +65,10 @@
 
 			<div class="split">
 				<div class="field">
-					<label for="sort">Sort by</label>
+					<label for="sort">Sort by start time</label>
 					<select id="sort" name="sort" value={data.filters.sort}>
-						<option value="start_asc">Soonest first</option>
-						<option value="start_desc">Latest first</option>
+						<option value="start_asc">Earliest start time first</option>
+						<option value="start_desc">Latest start time first</option>
 					</select>
 				</div>
 			</div>

@@ -58,8 +58,8 @@
 
 	<PageHeader
 		eyebrow="Featured mentors"
-		title="Meet mentors members can book today"
-		description="Browse a few mentors from the community and explore the conversations they can help with."
+		title="Meet mentors available for booking"
+		description="Browse a few mentors from the community and explore the kinds of conversations they can help with."
 	/>
 
 	<section class="grid cards">

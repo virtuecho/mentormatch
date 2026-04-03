@@ -17,6 +17,7 @@ type UserRow = {
   email: string;
   role: "mentee" | "mentor" | "admin";
   is_mentor_approved: number;
+  created_at: string;
 };
 
 type ProfileRow = {
@@ -83,13 +84,21 @@ class ProfileTestDatabase implements DatabaseClient {
       email: "mentor@example.com",
       role: "mentee",
       is_mentor_approved: 0,
+      created_at: "2026-01-01T00:00:00.000Z",
     },
-    { id: 2, email: "admin@example.com", role: "admin", is_mentor_approved: 1 },
+    {
+      id: 2,
+      email: "admin@example.com",
+      role: "admin",
+      is_mentor_approved: 1,
+      created_at: "2026-01-02T00:00:00.000Z",
+    },
     {
       id: 3,
       email: "grace@example.com",
       role: "mentor",
       is_mentor_approved: 1,
+      created_at: "2026-01-03T00:00:00.000Z",
     },
   ];
   private profiles: ProfileRow[] = [
@@ -283,6 +292,7 @@ class ProfileTestDatabase implements DatabaseClient {
           email: user.email,
           role: user.role,
           is_mentor_approved: user.is_mentor_approved,
+          created_at: user.created_at,
           full_name: profile.full_name,
           profile_image_url: profile.profile_image_url,
           location: profile.location,
