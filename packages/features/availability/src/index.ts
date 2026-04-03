@@ -293,6 +293,32 @@ function mapHostedAvailability(slot: AvailabilityRow): HostedAvailabilitySlot {
   };
 }
 
+function getConstraintMessage(error: unknown) {
+  return error instanceof Error ? error.message.toLowerCase() : "";
+}
+
+function normalizeAvailabilityWriteError(error: unknown): never {
+  if (error instanceof AppError) {
+    throw error;
+  }
+
+  const message = getConstraintMessage(error);
+
+  if (
+    message.includes(
+      "unique constraint failed: availability_slots.mentor_id, availability_slots.start_time",
+    )
+  ) {
+    throw new AppError(
+      409,
+      "duplicate_availability_slot",
+      "You already have a slot at one of the selected times.",
+    );
+  }
+
+  throw error;
+}
+
 export async function createAvailabilitySlot(
   db: DatabaseClient,
   mentorId: number,
@@ -300,52 +326,38 @@ export async function createAvailabilitySlot(
 ) {
   const payload = availabilityCreateSchema.parse(input);
   const now = new Date().toISOString();
-  const existingSlot = await db.get<{ id: number }>(
-    `
-			SELECT id
-			FROM availability_slots
-			WHERE mentor_id = ? AND start_time = ?
-			LIMIT 1
-		`,
-    [mentorId, payload.startTime],
-  );
-
-  if (existingSlot) {
-    throw new AppError(
-      409,
-      "duplicate_availability_slot",
-      "You already have a slot at that exact time.",
+  try {
+    const slotInsert = await db.run(
+      `
+        INSERT INTO availability_slots (
+          mentor_id, title, booking_mode, preset_topic, preset_description, start_time,
+          duration_mins, location_type, city, address, max_participants, note,
+          is_booked, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      `,
+      [
+        mentorId,
+        payload.title,
+        payload.bookingMode,
+        payload.presetTopic ?? null,
+        payload.presetDescription ?? null,
+        payload.startTime,
+        payload.durationMins,
+        payload.locationType,
+        payload.city,
+        payload.address,
+        payload.maxParticipants,
+        payload.note ?? null,
+        now,
+        now,
+      ],
     );
+
+    return getAvailabilityById(db, slotInsert.lastRowId ?? 0, mentorId);
+  } catch (error) {
+    normalizeAvailabilityWriteError(error);
   }
-
-  const slotInsert = await db.run(
-    `
-			INSERT INTO availability_slots (
-				mentor_id, title, booking_mode, preset_topic, preset_description, start_time,
-				duration_mins, location_type, city, address, max_participants, note,
-				is_booked, created_at, updated_at
-			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-		`,
-    [
-      mentorId,
-      payload.title,
-      payload.bookingMode,
-      payload.presetTopic ?? null,
-      payload.presetDescription ?? null,
-      payload.startTime,
-      payload.durationMins,
-      payload.locationType,
-      payload.city,
-      payload.address,
-      payload.maxParticipants,
-      payload.note ?? null,
-      now,
-      now,
-    ],
-  );
-
-  return getAvailabilityById(db, slotInsert.lastRowId ?? 0, mentorId);
 }
 
 export async function updateAvailabilitySlot(
@@ -356,92 +368,74 @@ export async function updateAvailabilitySlot(
 ) {
   const payload = availabilityCreateSchema.parse(input);
   const now = new Date().toISOString();
-  const slot = await db.get<{ id: number }>(
-    "SELECT id FROM availability_slots WHERE id = ? AND mentor_id = ? LIMIT 1",
-    [slotId, mentorId],
-  );
-
-  if (!slot) {
-    throw new AppError(
-      404,
-      "availability_not_found",
-      "Availability slot not found",
+  try {
+    const result = await db.run(
+      `
+        UPDATE availability_slots
+        SET
+          title = ?,
+          booking_mode = ?,
+          preset_topic = ?,
+          preset_description = ?,
+          start_time = ?,
+          duration_mins = ?,
+          location_type = ?,
+          city = ?,
+          address = ?,
+          max_participants = ?,
+          note = ?,
+          updated_at = ?
+        WHERE id = ? AND mentor_id = ?
+          AND NOT EXISTS (
+            SELECT 1
+            FROM bookings b
+            WHERE b.availability_slot_id = availability_slots.id
+              AND b.status IN ('pending', 'accepted')
+          )
+      `,
+      [
+        payload.title,
+        payload.bookingMode,
+        payload.presetTopic ?? null,
+        payload.presetDescription ?? null,
+        payload.startTime,
+        payload.durationMins,
+        payload.locationType,
+        payload.city,
+        payload.address,
+        payload.maxParticipants,
+        payload.note ?? null,
+        now,
+        slotId,
+        mentorId,
+      ],
     );
+
+    if (result.changes !== 1) {
+      const slot = await db.get<{ id: number }>(
+        "SELECT id FROM availability_slots WHERE id = ? AND mentor_id = ? LIMIT 1",
+        [slotId, mentorId],
+      );
+
+      if (!slot) {
+        throw new AppError(
+          404,
+          "availability_not_found",
+          "Availability slot not found",
+        );
+      }
+
+      throw new AppError(
+        409,
+        "active_booking_exists",
+        "Resolve pending or accepted requests before editing this session.",
+      );
+    }
+
+    return getAvailabilityById(db, slotId, mentorId);
+  } catch (error) {
+    normalizeAvailabilityWriteError(error);
   }
-
-  const activeBooking = await db.get<{ id: number }>(
-    `
-			SELECT id
-			FROM bookings
-			WHERE availability_slot_id = ? AND status IN ('pending', 'accepted')
-			LIMIT 1
-		`,
-    [slotId],
-  );
-
-  if (activeBooking) {
-    throw new AppError(
-      409,
-      "active_booking_exists",
-      "Resolve pending or accepted requests before editing this session.",
-    );
-  }
-
-  const existingSlot = await db.get<{ id: number }>(
-    `
-			SELECT id
-			FROM availability_slots
-			WHERE mentor_id = ? AND start_time = ? AND id != ?
-			LIMIT 1
-		`,
-    [mentorId, payload.startTime, slotId],
-  );
-
-  if (existingSlot) {
-    throw new AppError(
-      409,
-      "duplicate_availability_slot",
-      "You already have a slot at that exact time.",
-    );
-  }
-
-  await db.run(
-    `
-			UPDATE availability_slots
-			SET
-				title = ?,
-				booking_mode = ?,
-				preset_topic = ?,
-				preset_description = ?,
-				start_time = ?,
-				duration_mins = ?,
-				location_type = ?,
-				city = ?,
-				address = ?,
-				max_participants = ?,
-				note = ?,
-				updated_at = ?
-			WHERE id = ? AND mentor_id = ?
-		`,
-    [
-      payload.title,
-      payload.bookingMode,
-      payload.presetTopic ?? null,
-      payload.presetDescription ?? null,
-      payload.startTime,
-      payload.durationMins,
-      payload.locationType,
-      payload.city,
-      payload.address,
-      payload.maxParticipants,
-      payload.note ?? null,
-      now,
-      slotId,
-      mentorId,
-    ],
-  );
-
-  return getAvailabilityById(db, slotId, mentorId);
 }
 
 export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
@@ -460,7 +454,12 @@ export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
 				address,
 				max_participants,
 				note,
-				is_booked,
+				EXISTS (
+					SELECT 1
+					FROM bookings b
+					WHERE b.availability_slot_id = availability_slots.id
+						AND b.status = 'accepted'
+				) AS is_booked,
 				(
 					SELECT b.id
 					FROM bookings b
@@ -530,9 +529,8 @@ export async function listAllAvailabilitySlots(
 				s.city,
 				s.address,
 				s.max_participants,
-				s.note,
-				s.is_booked,
-				u.email AS mentor_email,
+					s.note,
+					u.email AS mentor_email,
 				p.full_name AS mentor_full_name,
 				p.profile_image_url AS mentor_profile_image_url,
 				(
@@ -564,7 +562,7 @@ export async function listAllAvailabilitySlots(
     address: slot.address,
     maxParticipants: slot.max_participants,
     note: slot.note,
-    isBooked: Boolean(slot.is_booked),
+    isBooked: Number(slot.accepted_request_count ?? 0) > 0,
     bookingMode: slot.booking_mode,
     presetTopic: slot.preset_topic,
     presetDescription: slot.preset_description,
@@ -592,16 +590,27 @@ export async function getMentorAvailability(
 				booking_mode,
 				preset_topic,
 				preset_description,
-				start_time,
-				duration_mins,
-				location_type,
-				city,
-				address,
-				max_participants,
-				note,
-				is_booked
-			FROM availability_slots
-			WHERE mentor_id = ? AND is_booked = 0 AND start_time >= ?
+					start_time,
+					duration_mins,
+					location_type,
+					city,
+					address,
+					max_participants,
+					note,
+					EXISTS (
+						SELECT 1
+						FROM bookings b
+						WHERE b.availability_slot_id = availability_slots.id
+							AND b.status = 'accepted'
+					) AS is_booked
+				FROM availability_slots
+				WHERE mentor_id = ? AND start_time >= ?
+					AND NOT EXISTS (
+						SELECT 1
+						FROM bookings b
+						WHERE b.availability_slot_id = availability_slots.id
+							AND b.status = 'accepted'
+					)
 			ORDER BY start_time ASC
 		`,
     [mentorId, new Date().toISOString()],
@@ -662,45 +671,40 @@ export async function deleteAvailabilitySlot(
   mentorId: number,
   slotId: number,
 ) {
-  const slot = await db.get<{ id: number }>(
-    "SELECT id FROM availability_slots WHERE id = ? AND mentor_id = ? LIMIT 1",
+  const result = await db.run(
+    `
+      DELETE FROM availability_slots
+      WHERE id = ? AND mentor_id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM bookings b
+          WHERE b.availability_slot_id = availability_slots.id
+            AND b.status = 'accepted'
+        )
+    `,
     [slotId, mentorId],
   );
 
-  if (!slot) {
-    throw new AppError(
-      404,
-      "availability_not_found",
-      "Availability slot not found",
+  if (result.changes !== 1) {
+    const slot = await db.get<{ id: number }>(
+      "SELECT id FROM availability_slots WHERE id = ? AND mentor_id = ? LIMIT 1",
+      [slotId, mentorId],
     );
-  }
 
-  const accepted = await db.get<{ id: number }>(
-    `
-			SELECT id
-			FROM bookings
-			WHERE availability_slot_id = ? AND status = 'accepted'
-			LIMIT 1
-		`,
-    [slotId],
-  );
+    if (!slot) {
+      throw new AppError(
+        404,
+        "availability_not_found",
+        "Availability slot not found",
+      );
+    }
 
-  if (accepted) {
     throw new AppError(
       400,
       "accepted_booking_exists",
       "Cannot delete slot while there is an accepted booking. Cancel the booking first.",
     );
   }
-
-  await db.run(
-    "DELETE FROM bookings WHERE availability_slot_id = ? AND status != 'accepted'",
-    [slotId],
-  );
-  await db.run(
-    "DELETE FROM availability_slots WHERE id = ? AND mentor_id = ?",
-    [slotId, mentorId],
-  );
 
   return { ok: true };
 }
@@ -743,36 +747,45 @@ export async function createAvailabilitySeries(
     );
   }
 
-  const placeholders = startTimes.map(() => "?").join(", ");
-  const existingSlots =
-    startTimes.length > 0
-      ? await db.all<{ start_time: string }>(
-          `
-            SELECT start_time
-            FROM availability_slots
-            WHERE mentor_id = ? AND start_time IN (${placeholders})
+  try {
+    const now = new Date().toISOString();
+    await db.batch(
+      startTimes.map((startTime) => {
+        const payload = buildAvailabilityPayload(input, startTime);
+
+        return {
+          sql: `
+            INSERT INTO availability_slots (
+              mentor_id, title, booking_mode, preset_topic, preset_description, start_time,
+              duration_mins, location_type, city, address, max_participants, note,
+              is_booked, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
           `,
-          [mentorId, ...startTimes],
-        )
-      : [];
-
-  if (existingSlots.length > 0) {
-    throw new AppError(
-      409,
-      "duplicate_availability_slot",
-      "You already have a slot at one of the selected times.",
+          params: [
+            mentorId,
+            payload.title,
+            payload.bookingMode,
+            payload.presetTopic ?? null,
+            payload.presetDescription ?? null,
+            payload.startTime,
+            payload.durationMins,
+            payload.locationType,
+            payload.city,
+            payload.address,
+            payload.maxParticipants,
+            payload.note ?? null,
+            now,
+            now,
+          ],
+        };
+      }),
     );
-  }
 
-  for (const startTime of startTimes) {
-    await createAvailabilitySlot(
-      db,
-      mentorId,
-      buildAvailabilityPayload(input, startTime),
-    );
+    return { count: startTimes.length };
+  } catch (error) {
+    normalizeAvailabilityWriteError(error);
   }
-
-  return { count: startTimes.length };
 }
 
 export async function updateAvailabilitySlotFromLocalInput(
@@ -845,7 +858,12 @@ async function getAvailabilityById(
 				address,
 				max_participants,
 				note,
-				is_booked
+				EXISTS (
+					SELECT 1
+					FROM bookings b
+					WHERE b.availability_slot_id = availability_slots.id
+						AND b.status = 'accepted'
+				) AS is_booked
 			FROM availability_slots
 			WHERE id = ? AND mentor_id = ?
 			LIMIT 1

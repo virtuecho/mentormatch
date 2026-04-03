@@ -36,7 +36,10 @@ class MentorTestDatabase implements DatabaseClient {
           location: "Shanghai",
           latest_position: "Staff Engineer",
           latest_company: "MentorMatch",
-          latest_expertise_json: JSON.stringify(["Systems Design", "Leadership"]),
+          latest_expertise_json: JSON.stringify([
+            "Systems Design",
+            "Leadership",
+          ]),
           skill_names: "Career Planning,Interview Prep",
         },
       ];
@@ -49,6 +52,10 @@ class MentorTestDatabase implements DatabaseClient {
 
   async run(): Promise<QueryResult> {
     throw new Error("Unexpected run query");
+  }
+
+  async batch(): Promise<QueryResult[]> {
+    throw new Error("Unexpected batch query");
   }
 }
 

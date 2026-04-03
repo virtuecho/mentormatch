@@ -152,6 +152,23 @@ class ProfilePageTestDatabase implements DatabaseClient {
 
 		throw new Error(`Unexpected run query: ${sql} :: ${JSON.stringify(params)}`);
 	}
+
+	async batch(statements: Array<{ sql: string; params?: QueryParams }>): Promise<QueryResult[]> {
+		const userSnapshot = this.users.map((user) => ({ ...user }));
+		const profileSnapshot = this.profiles.map((profile) => ({ ...profile }));
+
+		try {
+			const results: QueryResult[] = [];
+			for (const statement of statements) {
+				results.push(await this.run(statement.sql, statement.params ?? []));
+			}
+			return results;
+		} catch (error) {
+			this.users = userSnapshot;
+			this.profiles = profileSnapshot;
+			throw error;
+		}
+	}
 }
 
 function createRequest(fields: Record<string, string>) {

@@ -91,6 +91,7 @@ Protected pages:
 - accepted sessions are auto-completed after their scheduled end time, and mentors can also mark them complete early
 - slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
 - booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
+- the booking write path relies on database constraints plus batched updates so slot state and request state stay aligned during accept, cancel, and multi-slot booking actions
 - mentor availability is stored as UTC so it renders correctly per viewer locale
 - the shell switches to a compact expandable navigation on phones so long menus and logout remain reachable
 - the mobile topbar keeps visible spacing below the `Open navigation` control so the first page section does not press against it

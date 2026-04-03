@@ -223,9 +223,20 @@ export async function getMentorProfile(
 					address,
 					max_participants,
 					note,
-					is_booked
+					EXISTS (
+						SELECT 1
+						FROM bookings b
+						WHERE b.availability_slot_id = availability_slots.id
+							AND b.status = 'accepted'
+					) AS is_booked
 				FROM availability_slots
-				WHERE mentor_id = ? AND start_time >= ? AND is_booked = 0
+				WHERE mentor_id = ? AND start_time >= ?
+					AND NOT EXISTS (
+						SELECT 1
+						FROM bookings b
+						WHERE b.availability_slot_id = availability_slots.id
+							AND b.status = 'accepted'
+					)
 				ORDER BY start_time ASC
 			`,
         [mentorId, new Date().toISOString()],

@@ -39,6 +39,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - accepted sessions automatically become completed after their scheduled end time, and mentors can manually complete them earlier when needed
 - slots support two booking modes: preset mentor agenda or open topic chosen by the mentee
 - booking rules prevent duplicate same-slot requests, overlapping active mentee requests, and multiple accepted bookings on a single slot
+- booking mutations use database-backed constraints and batched writes so accept/cancel flows update request state and slot occupancy together
 - booking and hosted-session cards use a denser metadata layout so filtering large lists stays readable on smaller screens
 - availability is converted to UTC on submit and rendered back in each viewer's locale
 - the shared app shell collapses navigation on small screens and keeps account actions, including logout, reachable in a mobile menu
@@ -176,6 +177,7 @@ erDiagram
 - `availability_slots.start_time` is the canonical comparison field for sorting, overlap checks, and booking enforcement.
 - Recurring publication is materialized into separate `availability_slots` rows up front, not stored as one RRULE-only record.
 - Read-side UI can still group matching occurrences into a visible series, but write-side operations remain occurrence-scoped.
+- `availability_slots.is_booked` is treated as a database-maintained read model derived from accepted bookings, while booking status remains the source of truth.
 
 Why this matters:
 
@@ -251,7 +253,7 @@ flowchart LR
 Notes:
 
 - Rejected and cancelled requests do not permanently retire a slot.
-- Accepted bookings mark the slot as booked; completed sessions are produced automatically after the scheduled end time or manually by the mentor earlier.
+- Accepted bookings mark the slot as booked through DB-enforced write rules; completed sessions are produced automatically after the scheduled end time or manually by the mentor earlier.
 
 ## Runtime Bindings
 

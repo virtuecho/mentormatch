@@ -312,7 +312,7 @@ class ProfileTestDatabase implements DatabaseClient {
       const userId = Number(params[0]);
       return this.mentorSkills
         .filter((item) => item.mentor_id === userId)
-        .map((item) => ({ skill_name: item.skill_name } as T));
+        .map((item) => ({ skill_name: item.skill_name }) as T);
     }
 
     throw new Error(`Unexpected all query: ${sql}`);
@@ -446,7 +446,9 @@ class ProfileTestDatabase implements DatabaseClient {
         _updatedAt,
         userId,
       ] = params;
-      const profile = this.profiles.find((item) => item.user_id === Number(userId));
+      const profile = this.profiles.find(
+        (item) => item.user_id === Number(userId),
+      );
       if (!profile) {
         return { changes: 0, lastRowId: null };
       }
@@ -457,7 +459,8 @@ class ProfileTestDatabase implements DatabaseClient {
       profile.profile_image_url =
         profileImageUrl == null ? null : String(profileImageUrl);
       profile.linkedin_url = linkedinUrl == null ? null : String(linkedinUrl);
-      profile.instagram_url = instagramUrl == null ? null : String(instagramUrl);
+      profile.instagram_url =
+        instagramUrl == null ? null : String(instagramUrl);
       profile.facebook_url = facebookUrl == null ? null : String(facebookUrl);
       profile.website_url = websiteUrl == null ? null : String(websiteUrl);
       profile.phone = phone == null ? null : String(phone);
@@ -466,19 +469,25 @@ class ProfileTestDatabase implements DatabaseClient {
 
     if (sql.includes("DELETE FROM educations WHERE user_id = ?")) {
       const userId = Number(params[0]);
-      this.educations = this.educations.filter((item) => item.user_id !== userId);
+      this.educations = this.educations.filter(
+        (item) => item.user_id !== userId,
+      );
       return { changes: 1, lastRowId: null };
     }
 
     if (sql.includes("DELETE FROM experiences WHERE user_id = ?")) {
       const userId = Number(params[0]);
-      this.experiences = this.experiences.filter((item) => item.user_id !== userId);
+      this.experiences = this.experiences.filter(
+        (item) => item.user_id !== userId,
+      );
       return { changes: 1, lastRowId: null };
     }
 
     if (sql.includes("DELETE FROM mentor_skills WHERE mentor_id = ?")) {
       const userId = Number(params[0]);
-      this.mentorSkills = this.mentorSkills.filter((item) => item.mentor_id !== userId);
+      this.mentorSkills = this.mentorSkills.filter(
+        (item) => item.mentor_id !== userId,
+      );
       return { changes: 1, lastRowId: null };
     }
 
@@ -552,6 +561,45 @@ class ProfileTestDatabase implements DatabaseClient {
     }
 
     throw new Error(`Unexpected run query: ${sql}`);
+  }
+
+  async batch(
+    statements: Array<{ sql: string; params?: QueryParams }>,
+  ): Promise<QueryResult[]> {
+    const userSnapshot = this.users.map((user) => ({ ...user }));
+    const profileSnapshot = this.profiles.map((profile) => ({ ...profile }));
+    const requestSnapshot = this.mentorRequests.map((request) => ({
+      ...request,
+    }));
+    const educationSnapshot = this.educations.map((education) => ({
+      ...education,
+    }));
+    const experienceSnapshot = this.experiences.map((experience) => ({
+      ...experience,
+    }));
+    const skillSnapshot = this.mentorSkills.map((skill) => ({ ...skill }));
+    const nextRequestId = this.nextRequestId;
+    const nextEducationId = this.nextEducationId;
+    const nextExperienceId = this.nextExperienceId;
+
+    try {
+      const results: QueryResult[] = [];
+      for (const statement of statements) {
+        results.push(await this.run(statement.sql, statement.params ?? []));
+      }
+      return results;
+    } catch (error) {
+      this.users = userSnapshot;
+      this.profiles = profileSnapshot;
+      this.mentorRequests = requestSnapshot;
+      this.educations = educationSnapshot;
+      this.experiences = experienceSnapshot;
+      this.mentorSkills = skillSnapshot;
+      this.nextRequestId = nextRequestId;
+      this.nextEducationId = nextEducationId;
+      this.nextExperienceId = nextExperienceId;
+      throw error;
+    }
   }
 }
 
