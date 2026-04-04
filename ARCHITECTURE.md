@@ -44,6 +44,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - booking mutations use database-backed constraints and batched writes so accept/cancel flows update request state and slot occupancy together
 - booking and hosted-session cards use a denser metadata layout so filtering large lists stays readable on smaller screens
 - availability is converted to UTC on submit and rendered back in each viewer's locale
+- public routes use a top-navigation marketing shell while authenticated routes use a sidebar workspace shell, which lets landing and auth pages carry a stronger brand treatment without forking route logic
 - the shared app shell collapses navigation on small screens and keeps account actions, including logout, reachable in a mobile menu
 - the mobile shell also preserves bottom spacing under the `Open navigation` control so content does not butt directly against the topbar
 
@@ -149,7 +150,7 @@ This package contains framework-agnostic shared code:
 
 ### `packages/ui`
 
-This package contains reusable Svelte UI primitives used across the Worker app.
+This package contains reusable Svelte UI primitives used across the Worker app, including the split public/authenticated shell, section headers, panels, stat cards, and shared tag rendering.
 
 ## Data Model
 

@@ -64,6 +64,12 @@ Public pages:
 - `/login`
 - `/signup`
 
+Public-facing UX notes:
+
+- guests now use a dedicated top-navigation marketing shell, while signed-in members stay inside the sidebar workspace shell
+- the homepage is intentionally structured around an editorial hero, trust signals, the four-step process, featured mentors, and a closing CTA instead of a generic SaaS dashboard landing
+- `/login` and `/signup` use brand-led two-column authentication layouts, but their underlying form actions and account rules remain unchanged
+
 Protected pages:
 
 - `/dashboard`
@@ -104,6 +110,7 @@ Protected pages:
 - mentor availability is stored as UTC so it renders correctly per viewer locale
 - the shell switches to a compact expandable navigation on phones so long menus and logout remain reachable
 - the mobile topbar keeps visible spacing below the `Open navigation` control so the first page section does not press against it
+- public visitors now get a top navigation shell while authenticated users keep a richer workspace shell, so the landing and auth pages can feel more product-led without affecting signed-in flows
 - booking and request cards use denser metadata layouts so long session lists stay scannable on desktop and mobile
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
