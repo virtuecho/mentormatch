@@ -25,7 +25,7 @@
   .page-header {
     display: grid;
     gap: 0.8rem;
-    max-width: 68rem;
+    max-width: none;
   }
 
   .eyebrow-row {
@@ -51,7 +51,7 @@
 
   h1 {
     margin: 0;
-    max-width: 14ch;
+    max-width: 36ch;
     font-family: var(--font-display, Georgia, serif);
     font-size: clamp(2.35rem, 5vw, 4.8rem);
     line-height: 0.94;
