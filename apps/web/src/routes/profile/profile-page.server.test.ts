@@ -239,6 +239,38 @@ describe('profile page save action', () => {
 		expect(db.profiles.find((item) => item.userId === 2)?.fullName).toBe('Managed Member');
 	});
 
+	it('keeps the managed profile target when the action URL carries userId', async () => {
+		const db = new ProfilePageTestDatabase();
+
+		await expect(
+			actions.save({
+				request: createRequest(
+					createBaseFields({
+						fullName: 'Managed Through Query'
+					})
+				),
+				locals: {
+					db,
+					authSecret: 'test-secret',
+					user: {
+						id: 1,
+						email: 'admin@example.com',
+						role: 'admin',
+						isMentorApproved: true,
+						fullName: 'Admin User',
+						profileImageUrl: ''
+					}
+				},
+				url: new URL('http://localhost:5173/profile?userId=2')
+			} as unknown as Parameters<(typeof actions)['save']>[0])
+		).rejects.toMatchObject({
+			status: 303,
+			location: '/profile?userId=2&updated=1'
+		});
+		expect(db.profiles.find((item) => item.userId === 1)?.fullName).toBe('Admin User');
+		expect(db.profiles.find((item) => item.userId === 2)?.fullName).toBe('Managed Through Query');
+	});
+
 	it('ignores a forged targetUserId for non-admin users and keeps the save scoped to self', async () => {
 		const db = new ProfilePageTestDatabase();
 

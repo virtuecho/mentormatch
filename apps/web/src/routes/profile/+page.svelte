@@ -181,6 +181,9 @@
 
 	const serializedEducations = $derived(JSON.stringify(serializeEducations(educations)));
 	const serializedExperiences = $derived(JSON.stringify(serializeExperiences(experiences)));
+	const saveAction = $derived(
+		data.isAdminManagingUser ? `?/save&userId=${data.profile.id}` : '?/save'
+	);
 </script>
 
 <div class="page">
@@ -250,7 +253,7 @@
 		</Panel>
 	</div>
 
-	<form class="stack" method="POST" action="?/save">
+	<form class="stack" method="POST" action={saveAction}>
 		<input type="hidden" name="targetUserId" value={String(data.profile.id)} />
 		<input type="hidden" name="educationsJson" value={serializedEducations} />
 		<input type="hidden" name="experiencesJson" value={serializedExperiences} />
