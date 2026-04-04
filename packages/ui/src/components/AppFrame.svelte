@@ -145,7 +145,7 @@
           {/each}
         </nav>
 
-        <details class="mobile-menu public-menu">
+        <details class="mobile-menu">
           <summary>Open navigation</summary>
 
           <div class="mobile-menu-panel">
@@ -563,11 +563,11 @@
       display: flex;
     }
 
-    .mobile-menu {
+    .mobile-topbar .mobile-menu {
       display: block;
     }
 
-    .mobile-menu .nav-list {
+    .mobile-topbar .mobile-menu .nav-list {
       padding-top: 0.9rem;
     }
   }
@@ -581,7 +581,7 @@
       display: none;
     }
 
-    .public-menu {
+    .public-topbar .mobile-menu {
       display: block;
       max-width: 14rem;
     }
@@ -591,7 +591,7 @@
       flex-wrap: wrap;
     }
 
-    .public-menu .nav-list {
+    .public-topbar .nav-list {
       display: grid;
       gap: 0.5rem;
     }
@@ -606,7 +606,7 @@
       max-width: none;
     }
 
-    .public-menu,
+    .public-topbar .mobile-menu,
     .mobile-menu {
       max-width: none;
     }
