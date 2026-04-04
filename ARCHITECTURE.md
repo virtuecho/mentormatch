@@ -152,6 +152,8 @@ This package contains framework-agnostic shared code:
 
 This package contains reusable Svelte UI primitives used across the Worker app, including the split public/authenticated shell, section headers, panels, stat cards, and shared tag rendering.
 
+The current public design system pairs `Manrope` for UI/body copy with `Crimson Text` for editorial headings, keeping interface legibility high while giving marketing and auth surfaces a more distinctive serif voice.
+
 ## Data Model
 
 Core persistence lives in Cloudflare D1 and follows a small relational model:
