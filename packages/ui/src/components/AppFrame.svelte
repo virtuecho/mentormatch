@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import type { Snippet } from "svelte";
 
   type NavItem = {
     href: string;
@@ -22,38 +22,53 @@
   }
 
   let {
-    title = 'MentorMatch',
-    subtitle = 'Find mentors, book time, and keep your next steps moving.',
+    title = "MentorMatch",
+    subtitle = "Find mentors, book time, and keep your next steps moving.",
     navItems = [],
-    currentPath = '/',
+    currentPath = "/",
     user = null,
-    children
+    children,
   }: Props = $props();
+
+  function getPublicLinkTone(item: NavItem) {
+    if (item.href === "/signup") {
+      return "primary";
+    }
+
+    if (item.href === "/login") {
+      return "secondary";
+    }
+
+    return "plain";
+  }
 </script>
 
-<div class="app-shell">
-  <section class="mobile-topbar">
-    <div class="brand">
-      <div class="brand-mark">MM</div>
-      <div>
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
+{#if user}
+  <div class="workspace-shell">
+    <section class="mobile-topbar">
+      <div class="mobile-topbar-header">
+        <a class="brand brand-link" href="/">
+          <div class="brand-mark">MM</div>
+          <div class="brand-copy">
+            <p class="brand-kicker">Workspace</p>
+            <h1>{title}</h1>
+          </div>
+        </a>
+        <span class="mobile-role">{user.role}</span>
       </div>
-    </div>
 
-    <details class="mobile-menu">
-      <summary>Open navigation</summary>
+      <details class="mobile-menu">
+        <summary>Open navigation</summary>
 
-      <div class="mobile-menu-panel">
-        <nav>
-          {#each navItems as item}
-            <a class:active={currentPath === item.href} href={item.href}>
-              {item.label}
-            </a>
-          {/each}
-        </nav>
+        <div class="mobile-menu-panel">
+          <nav class="nav-list">
+            {#each navItems as item}
+              <a class:active={currentPath === item.href} href={item.href}>
+                {item.label}
+              </a>
+            {/each}
+          </nav>
 
-        {#if user}
           <div class="account-card">
             <p class="account-label">Signed in as</p>
             <strong class="account-name">{user.fullName}</strong>
@@ -64,149 +79,387 @@
               <button class="logout-button" type="submit">Log out</button>
             </form>
           </div>
-        {/if}
-      </div>
-    </details>
-  </section>
+        </div>
+      </details>
+    </section>
 
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">MM</div>
-      <div>
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
-      </div>
+    <div class="workspace-grid">
+      <aside class="sidebar">
+        <div class="sidebar-frame">
+          <a class="brand brand-link" href="/">
+            <div class="brand-mark">MM</div>
+            <div class="brand-copy">
+              <p class="brand-kicker">Workspace</p>
+              <h1>{title}</h1>
+              <p>{subtitle}</p>
+            </div>
+          </a>
+
+          <nav class="nav-list">
+            {#each navItems as item}
+              <a class:active={currentPath === item.href} href={item.href}>
+                {item.label}
+              </a>
+            {/each}
+          </nav>
+
+          <div class="account-card">
+            <p class="account-label">Signed in as</p>
+            <strong class="account-name">{user.fullName}</strong>
+            <p class="account-email">{user.email}</p>
+            <span class="account-role">{user.role}</span>
+
+            <form method="POST" action="/logout">
+              <button class="logout-button" type="submit">Log out</button>
+            </form>
+          </div>
+        </div>
+      </aside>
+
+      <main class="content workspace-content">
+        {@render children?.()}
+      </main>
     </div>
-
-    <nav>
-      {#each navItems as item}
-        <a class:active={currentPath === item.href} href={item.href}>
-          {item.label}
+  </div>
+{:else}
+  <div class="public-shell">
+    <header class="public-topbar">
+      <div class="public-topbar-inner">
+        <a class="brand brand-link" href="/">
+          <div class="brand-mark">MM</div>
+          <div class="brand-copy">
+            <p class="brand-kicker">Mentoring Platform</p>
+            <h1>{title}</h1>
+          </div>
         </a>
-      {/each}
-    </nav>
 
-    {#if user}
-      <div class="account-card">
-        <p class="account-label">Signed in as</p>
-        <strong class="account-name">{user.fullName}</strong>
-        <p class="account-email">{user.email}</p>
-        <span class="account-role">{user.role}</span>
+        <nav class="public-nav public-nav-desktop">
+          {#each navItems as item}
+            <a
+              class={`public-nav-link ${getPublicLinkTone(item)}`}
+              class:active={currentPath === item.href}
+              href={item.href}
+            >
+              {item.label}
+            </a>
+          {/each}
+        </nav>
 
-        <form method="POST" action="/logout">
-          <button class="logout-button" type="submit">Log out</button>
-        </form>
+        <details class="mobile-menu public-menu">
+          <summary>Open navigation</summary>
+
+          <div class="mobile-menu-panel">
+            <nav class="nav-list public-nav-list">
+              {#each navItems as item}
+                <a class:active={currentPath === item.href} href={item.href}>
+                  {item.label}
+                </a>
+              {/each}
+            </nav>
+          </div>
+        </details>
       </div>
-    {/if}
-  </aside>
+    </header>
 
-  <main class="content">
-    {@render children?.()}
-  </main>
-</div>
+    <main class="content public-content">
+      {@render children?.()}
+    </main>
+  </div>
+{/if}
 
 <style>
-  .app-shell {
-    display: grid;
-    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  .workspace-shell,
+  .public-shell {
     min-height: 100vh;
+    color: var(--ink-strong, #172433);
+  }
+
+  .workspace-shell {
     background:
-      radial-gradient(circle at top right, rgba(14, 116, 144, 0.2), transparent 35%),
-      linear-gradient(180deg, #f8fbff 0%, #edf4fb 100%);
+      radial-gradient(
+        circle at top left,
+        rgba(92, 122, 109, 0.16),
+        transparent 24%
+      ),
+      radial-gradient(
+        circle at top right,
+        rgba(24, 52, 77, 0.12),
+        transparent 26%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(251, 247, 242, 0.98),
+        rgba(244, 238, 228, 0.98)
+      );
+  }
+
+  .public-shell {
+    position: relative;
+    background:
+      radial-gradient(
+        circle at top left,
+        rgba(178, 138, 84, 0.08),
+        transparent 20%
+      ),
+      radial-gradient(
+        circle at top center,
+        rgba(92, 122, 109, 0.1),
+        transparent 30%
+      ),
+      linear-gradient(180deg, #fbf7f2 0%, #f2ebdf 100%);
+  }
+
+  .public-shell::before,
+  .workspace-shell::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(23, 36, 51, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(23, 36, 51, 0.02) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.25), transparent 88%);
+  }
+
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: minmax(270px, 320px) minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    display: block;
+    padding: 1.25rem;
+  }
+
+  .sidebar-frame {
+    position: sticky;
+    top: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+    height: calc(100vh - 2.4rem);
+    padding: 1.2rem;
+    border-radius: 2rem;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 252, 247, 0.9),
+        rgba(249, 244, 237, 0.86)
+      ),
+      rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(23, 36, 51, 0.08);
+    box-shadow:
+      0 24px 54px rgba(27, 38, 49, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(22px);
+    overflow-y: auto;
+  }
+
+  .public-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 1rem clamp(1.1rem, 2.8vw, 2rem) 0;
+  }
+
+  .public-topbar-inner,
+  .mobile-topbar,
+  .mobile-topbar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .public-topbar-inner {
+    width: min(1280px, 100%);
+    margin: 0 auto;
+    padding: 0.95rem 1rem;
+    border-radius: 1.6rem;
+    background: rgba(255, 252, 247, 0.82);
+    border: 1px solid rgba(23, 36, 51, 0.08);
+    box-shadow:
+      0 18px 42px rgba(27, 38, 49, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(18px);
   }
 
   .mobile-topbar {
     display: none;
-  }
-
-  .sidebar {
-    display: flex;
     flex-direction: column;
-    gap: 2rem;
-    padding: 2rem 1.25rem;
-    border-right: 1px solid rgba(15, 23, 42, 0.08);
-    background: rgba(255, 255, 255, 0.78);
-    backdrop-filter: blur(18px);
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    padding: 1rem 1rem 0;
   }
 
   .brand {
-    display: flex;
-    gap: 1rem;
+    display: inline-flex;
     align-items: center;
-    margin-bottom: 0;
+    gap: 0.95rem;
+    min-width: 0;
+  }
+
+  .brand-link {
+    color: inherit;
+    text-decoration: none;
   }
 
   .brand-mark {
-    width: 3rem;
-    height: 3rem;
+    width: 3.2rem;
+    height: 3.2rem;
     display: grid;
     place-items: center;
-    border-radius: 1rem;
-    background: linear-gradient(135deg, #0f766e, #2563eb);
-    color: white;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    flex-shrink: 0;
+    border-radius: 1.15rem;
+    background:
+      radial-gradient(
+        circle at 30% 30%,
+        rgba(255, 255, 255, 0.32),
+        transparent 34%
+      ),
+      linear-gradient(145deg, #204a63 0%, #6b8574 100%);
+    color: #fdfaf5;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    box-shadow:
+      0 16px 28px rgba(23, 50, 77, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .brand-copy {
+    min-width: 0;
+  }
+
+  .brand-kicker {
+    margin: 0 0 0.15rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(24, 52, 77, 0.68);
   }
 
   .brand h1 {
     margin: 0;
-    font-size: 1.05rem;
+    font-family: var(--font-body, "Segoe UI", sans-serif);
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
   }
 
-  .brand p {
-    margin: 0.2rem 0 0;
-    color: #475569;
-    font-size: 0.88rem;
-    line-height: 1.4;
+  .brand p:last-child {
+    margin: 0.28rem 0 0;
+    max-width: 24ch;
+    color: var(--ink-muted, #617180);
+    font-size: 0.92rem;
+    line-height: 1.55;
   }
 
-  nav {
+  .nav-list {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.38rem;
   }
 
-  nav a {
-    color: #1e293b;
+  .nav-list a,
+  .public-nav-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.95rem;
+    padding: 0.78rem 0.92rem;
+    border-radius: 999px;
+    color: var(--ink, #243647);
     text-decoration: none;
-    padding: 0.82rem 0.95rem;
-    border-radius: 1rem;
-    transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-    font-weight: 600;
+    font-weight: 700;
+    transition:
+      transform 160ms ease,
+      border-color 160ms ease,
+      background 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease;
   }
 
-  nav a:hover,
-  nav a.active {
-    background: rgba(37, 99, 235, 0.09);
-    color: #1d4ed8;
-    transform: translateX(2px);
+  .nav-list a {
+    border: 1px solid transparent;
+  }
+
+  .nav-list a:hover,
+  .nav-list a.active,
+  .public-nav-link:hover,
+  .public-nav-link.active {
+    color: var(--ink-strong, #172433);
+    background: rgba(255, 251, 245, 0.84);
+    border-color: rgba(23, 36, 51, 0.09);
+    box-shadow: 0 12px 24px rgba(27, 38, 49, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .public-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.55rem;
+  }
+
+  .public-nav-link {
+    padding-inline: 1rem;
+    border: 1px solid rgba(23, 36, 51, 0.08);
+    background: rgba(255, 252, 247, 0.66);
+  }
+
+  .public-nav-link.plain {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .public-nav-link.secondary {
+    background: rgba(255, 251, 245, 0.72);
+  }
+
+  .public-nav-link.primary {
+    color: #fdfaf5;
+    border-color: transparent;
+    background: linear-gradient(135deg, #18344d, #5d7665);
+    box-shadow: 0 16px 28px rgba(23, 50, 77, 0.18);
+  }
+
+  .public-nav-link.primary:hover,
+  .public-nav-link.primary.active {
+    color: #fdfaf5;
+    background: linear-gradient(135deg, #214865, #6b8574);
+    border-color: transparent;
   }
 
   .account-card {
     margin-top: auto;
     padding: 1rem;
-    min-width: 0;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 1rem;
-    background: rgba(248, 250, 252, 0.9);
+    border-radius: 1.45rem;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 254, 251, 0.88),
+      rgba(247, 242, 236, 0.88)
+    );
+    border: 1px solid rgba(23, 36, 51, 0.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 16px 32px rgba(27, 38, 49, 0.05);
   }
 
   .account-label,
   .account-card p {
     margin: 0;
-    color: #475569;
-    font-size: 0.9rem;
+    color: var(--ink-muted, #617180);
+    font-size: 0.92rem;
+    line-height: 1.5;
   }
 
   .account-card strong {
     display: block;
     margin-top: 0.3rem;
-    color: #0f172a;
+    font-size: 1.12rem;
+    color: var(--ink-strong, #172433);
   }
 
   .account-name,
@@ -215,15 +468,17 @@
     word-break: break-word;
   }
 
-  .account-role {
+  .account-role,
+  .mobile-role {
     display: inline-flex;
-    margin-top: 0.8rem;
-    padding: 0.25rem 0.65rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.32rem 0.72rem;
     border-radius: 999px;
-    background: rgba(15, 118, 110, 0.1);
-    color: #0f766e;
-    font-size: 0.82rem;
-    font-weight: 700;
+    background: rgba(93, 122, 109, 0.14);
+    color: #416052;
+    font-size: 0.8rem;
+    font-weight: 800;
     text-transform: capitalize;
   }
 
@@ -231,89 +486,140 @@
     margin-top: 1rem;
     width: 100%;
     border: none;
-    border-radius: 0.9rem;
-    padding: 0.8rem 1rem;
-    background: linear-gradient(135deg, #0f766e, #2563eb);
-    color: white;
-    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(135deg, #18344d, #5d7665);
+    color: #fdfaf5;
+    font-weight: 800;
     cursor: pointer;
+    box-shadow: 0 14px 24px rgba(23, 50, 77, 0.16);
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease;
   }
 
   .logout-button:hover {
-    opacity: 0.94;
+    transform: translateY(-1px);
+    box-shadow: 0 18px 28px rgba(23, 50, 77, 0.2);
+  }
+
+  .mobile-menu {
+    display: none;
+    width: 100%;
+    border-radius: 1.3rem;
+    background: rgba(255, 252, 247, 0.9);
+    border: 1px solid rgba(23, 36, 51, 0.08);
+    box-shadow:
+      0 18px 36px rgba(27, 38, 49, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    overflow: hidden;
+  }
+
+  .mobile-menu summary {
+    list-style: none;
+    padding: 0.92rem 1rem;
+    cursor: pointer;
+    font-weight: 800;
+    color: var(--ink-strong, #172433);
+  }
+
+  .mobile-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-menu-panel {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0 0.9rem 0.9rem;
+    border-top: 1px solid rgba(23, 36, 51, 0.08);
+  }
+
+  .public-nav-list {
+    padding-top: 0.9rem;
   }
 
   .content {
     min-width: 0;
   }
 
-  @media (max-width: 860px) {
-    .app-shell {
+  .public-content {
+    padding-bottom: 3rem;
+  }
+
+  .workspace-content {
+    padding-bottom: 2rem;
+  }
+
+  @media (max-width: 980px) {
+    .workspace-grid {
       grid-template-columns: 1fr;
-    }
-
-    .mobile-topbar {
-      display: grid;
-      gap: 1rem;
-      padding: 1rem 1rem 0.85rem;
-      background: rgba(255, 255, 255, 0.8);
-      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-      backdrop-filter: blur(18px);
-    }
-
-    .mobile-topbar .brand {
-      margin-bottom: 0;
-    }
-
-    .mobile-menu {
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      border-radius: 1rem;
-      background: rgba(248, 250, 252, 0.92);
-      overflow: hidden;
-    }
-
-    .mobile-menu summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 0.9rem 1rem;
-      font-weight: 700;
-      color: #0f172a;
-    }
-
-    .mobile-menu summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .mobile-menu-panel {
-      display: grid;
-      gap: 0.9rem;
-      padding: 0 0.9rem 0.9rem;
-      border-top: 1px solid rgba(15, 23, 42, 0.08);
-    }
-
-    .mobile-menu nav {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.55rem;
-      padding-top: 0.9rem;
-    }
-
-    .mobile-menu nav a {
-      min-height: 2.8rem;
-      padding: 0.75rem 0.85rem;
-      font-size: 0.95rem;
-    }
-
-    .mobile-menu .account-card {
-      margin-top: 0;
     }
 
     .sidebar {
       display: none;
     }
 
-    .content {
-      min-width: 0;
+    .mobile-topbar {
+      display: flex;
+    }
+
+    .mobile-menu {
+      display: block;
+    }
+
+    .mobile-menu .nav-list {
+      padding-top: 0.9rem;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .public-topbar {
+      padding-inline: 1rem;
+    }
+
+    .public-nav-desktop {
+      display: none;
+    }
+
+    .public-menu {
+      display: block;
+      max-width: 14rem;
+    }
+
+    .public-topbar-inner {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .public-menu .nav-list {
+      display: grid;
+      gap: 0.5rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .brand {
+      align-items: flex-start;
+    }
+
+    .brand p:last-child {
+      max-width: none;
+    }
+
+    .public-menu,
+    .mobile-menu {
+      max-width: none;
+    }
+
+    .mobile-topbar,
+    .public-topbar {
+      padding-inline: 0.9rem;
+    }
+
+    .nav-list a,
+    .public-nav-link {
+      width: 100%;
+      justify-content: center;
     }
   }
 </style>
