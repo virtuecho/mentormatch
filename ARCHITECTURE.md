@@ -45,6 +45,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - booking and hosted-session cards use a denser metadata layout so filtering large lists stays readable on smaller screens
 - availability is converted to UTC on submit and rendered back in each viewer's locale
 - public routes use a top-navigation marketing shell while authenticated routes use a sidebar workspace shell, which lets landing and auth pages carry a stronger brand treatment without forking route logic
+- the homepage uses a random featured-mentor sample on each load, but the directory and admin lists keep explicit deterministic sorting rules
 - the shared app shell collapses navigation on small screens and keeps account actions, including logout, reachable in a mobile menu
 - the mobile shell also preserves bottom spacing under the `Open navigation` control so content does not butt directly against the topbar
 

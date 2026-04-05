@@ -1,4 +1,4 @@
-import { listMentors } from '@mentormatch/feature-mentors';
+import { listFeaturedMentorsRandom } from '@mentormatch/feature-mentors';
 
 export async function load({ locals }) {
 	if (!locals.db) {
@@ -13,7 +13,7 @@ export async function load({ locals }) {
 			),
 			locals.db.get<{ count: number }>('SELECT COUNT(*) AS count FROM bookings', []),
 			locals.db.get<{ count: number }>('SELECT COUNT(*) AS count FROM users', []),
-			listMentors(locals.db, locals.user?.id ?? null, { q: '', city: '', tag: '', limit: 3 })
+			listFeaturedMentorsRandom(locals.db, locals.user?.id ?? null, 3)
 		]);
 
 		return {

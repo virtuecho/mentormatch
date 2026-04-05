@@ -103,6 +103,58 @@ export async function listMentors(
   return rows.map(mapMentorCard);
 }
 
+export async function listFeaturedMentorsRandom(
+  db: DatabaseClient,
+  currentUserId: number | null,
+  limit = 3,
+) {
+  const rows = await db.all<MentorCardRow>(
+    `
+			SELECT
+				u.id,
+				p.full_name,
+				p.profile_image_url,
+				p.location,
+				(
+					SELECT e.position
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_position,
+				(
+					SELECT e.company
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_company,
+				(
+					SELECT e.expertise_json
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_expertise_json,
+				(
+					SELECT GROUP_CONCAT(ms.skill_name, ',')
+					FROM mentor_skills ms
+					WHERE ms.mentor_id = u.id
+				) AS skill_names
+			FROM users u
+			JOIN profiles p ON p.user_id = u.id
+			WHERE u.role = 'mentor'
+				AND u.is_mentor_approved = 1
+				AND (? IS NULL OR u.id != ?)
+			ORDER BY RANDOM()
+			LIMIT ?
+		`,
+    [currentUserId, currentUserId, Math.max(1, Math.min(limit, 12))],
+  );
+
+  return rows.map(mapMentorCard);
+}
+
 export async function listApprovedMentorsForAdmin(
   db: DatabaseClient,
   limit = 200,
