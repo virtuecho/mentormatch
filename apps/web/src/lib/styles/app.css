@@ -857,6 +857,17 @@ select {
 	color: var(--ink);
 }
 
+.spotlight-note {
+	margin: 0;
+	font-size: 0.94rem;
+	line-height: 1.65;
+	color: var(--ink-muted);
+}
+
+.spotlight-actions {
+	padding-top: 0.3rem;
+}
+
 .featured-meta {
 	display: grid;
 	gap: 0.4rem;

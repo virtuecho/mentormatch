@@ -117,31 +117,47 @@
 				{/each}
 			</div>
 
-			{#if data.featuredMentors.length > 0}
+			{#if data.spotlightMentor}
 				<div class="request-card detail-card">
 					<p class="surface-caption">Featured mentor</p>
 					<div class="mentor-card-header">
 						<ProfileAvatar
-							name={data.featuredMentors[0].fullName}
-							src={data.featuredMentors[0].profileImageUrl}
+							name={data.spotlightMentor.fullName}
+							src={data.spotlightMentor.profileImageUrl}
 							size="lg"
 						/>
 						<div class="featured-meta">
-							<h3>{data.featuredMentors[0].fullName}</h3>
-							<p>{data.featuredMentors[0].position} · {data.featuredMentors[0].company}</p>
-							<p>{data.featuredMentors[0].location ?? 'Remote'}</p>
+							<h3>{data.spotlightMentor.fullName}</h3>
+							<p>{data.spotlightMentor.position} · {data.spotlightMentor.company}</p>
+							<p>{data.spotlightMentor.location ?? 'Remote'}</p>
 						</div>
 					</div>
 					<p class="featured-headline">
-						{data.featuredMentors[0].expertise.join(', ') || 'Open to mentoring conversations.'}
+						{data.spotlightMentor.expertise.join(', ') || 'Open to mentoring conversations.'}
 					</p>
-					<TagList tags={data.featuredMentors[0].mentorSkills} />
-					<a
-						class="button secondary"
-						href={resolve('/mentor/[id]', { id: String(data.featuredMentors[0].id) })}
-					>
-						View mentor
-					</a>
+					<TagList tags={data.spotlightMentor.mentorSkills} />
+					<p class="spotlight-note">
+						One mentor from today’s rotating featured set. Explore the grid below for a different
+						perspective.
+					</p>
+					<div class="cta-row spotlight-actions">
+						<a
+							class="button secondary"
+							href={resolve('/mentor/[id]', { id: String(data.spotlightMentor.id) })}
+						>
+							View mentor
+						</a>
+						{#if data.user}
+							<a
+								class="button primary"
+								href={resolve('/mentor/[id]', { id: String(data.spotlightMentor.id) })}
+							>
+								Book session
+							</a>
+						{:else}
+							<a class="button primary" href={resolve('/signup')}>Sign Up to book</a>
+						{/if}
+					</div>
 				</div>
 			{:else}
 				<div class="request-card detail-card">
@@ -190,8 +206,14 @@
 			{#if data.featuredMentors.length === 0}
 				<Panel>
 					<div class="detail-card">
-						<h3>No public mentors yet</h3>
-						<p>We are adding mentors now. Please check back soon.</p>
+						<h3>
+							{data.spotlightMentor ? 'More mentors are rotating in soon' : 'No public mentors yet'}
+						</h3>
+						<p>
+							{data.spotlightMentor
+								? 'The spotlight card above is active now. As more approved mentors are available, this grid will rotate in a wider set.'
+								: 'We are adding mentors now. Please check back soon.'}
+						</p>
 					</div>
 				</Panel>
 			{:else}
