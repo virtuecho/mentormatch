@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { DatabaseClient, QueryParams, QueryResult } from "@mentormatch/db";
 import {
-  adminUpdateUser,
-  approveUserAsMentor,
   listMentorRequests,
   listUsersForAdmin,
   patchProfile,
-  revokeMentorApproval,
-  reviewMentorRequest,
   submitMentorRequest,
   toggleRole,
   withdrawMentorRequest,
@@ -691,7 +687,14 @@ describe("feature-profile", () => {
       documentUrl: "https://example.com/cv.pdf",
       note: "Ready to help with interviews.",
     });
-    await reviewMentorRequest(db, 1, { status: "approved" });
+    await db.run(
+      "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
+      ["mentor", 1, "2026-04-01T00:00:00.000Z", 1],
+    );
+    await db.run(
+      "UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE id = ?",
+      ["approved", "2026-04-01T00:00:00.000Z", 1],
+    );
 
     await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({
       role: "mentor",
@@ -796,7 +799,10 @@ describe("feature-profile", () => {
       documentUrl: "https://example.com/cv.pdf",
       note: "Ready to help with interviews.",
     });
-    await reviewMentorRequest(db, 1, { status: "approved" });
+    await db.run(
+      "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
+      ["mentor", 1, "2026-04-01T00:00:00.000Z", 1],
+    );
 
     await expect(
       submitMentorRequest(db, 1, {
@@ -806,23 +812,6 @@ describe("feature-profile", () => {
     ).rejects.toMatchObject({
       status: 409,
       code: "mentor_already_approved",
-    });
-  });
-
-  it("lets admins revoke an approved mentor back to mentee mode", async () => {
-    const db = new ProfileTestDatabase();
-
-    await submitMentorRequest(db, 1, {
-      documentUrl: "https://example.com/cv.pdf",
-      note: "Ready to help with interviews.",
-    });
-    await reviewMentorRequest(db, 1, { status: "approved" });
-
-    await expect(revokeMentorApproval(db, 1)).resolves.toEqual({ ok: true });
-
-    await expect(toggleRole(db, 1, { role: "mentor" })).rejects.toMatchObject({
-      status: 403,
-      code: "mentor_approval_required",
     });
   });
 
@@ -849,16 +838,6 @@ describe("feature-profile", () => {
         }),
       ]),
     );
-  });
-
-  it("lets admins directly promote a mentee into mentor mode", async () => {
-    const db = new ProfileTestDatabase();
-
-    await expect(approveUserAsMentor(db, 1)).resolves.toEqual({ ok: true });
-
-    await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({
-      role: "mentor",
-    });
   });
 
   it("patches scalar profile fields without clearing nested profile records", async () => {
@@ -906,32 +885,4 @@ describe("feature-profile", () => {
     });
   });
 
-  it("lets admins update another user's public profile fields", async () => {
-    const db = new ProfileTestDatabase();
-
-    await expect(
-      adminUpdateUser(db, 1, {
-        fullName: "Ada Updated",
-        bio: "Updated by admin",
-        location: "Beijing",
-        phone: "12345",
-        profileImageUrl: null,
-        linkedinUrl: "linkedin.com/in/ada",
-        instagramUrl: null,
-        facebookUrl: null,
-        websiteUrl: "ada.dev",
-        mentorSkills: ["Strategy"],
-        educations: [],
-        experiences: [],
-      }),
-    ).resolves.toMatchObject({
-      email: "mentor@example.com",
-      profile: {
-        fullName: "Ada Updated",
-        bio: "Updated by admin",
-        location: "Beijing",
-        mentorSkills: ["Strategy"],
-      },
-    });
-  });
 });

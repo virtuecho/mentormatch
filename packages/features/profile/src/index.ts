@@ -4,7 +4,6 @@ import {
   ensureAvatar,
   mentorModeSchema,
   mentorRequestSchema,
-  mentorRequestReviewSchema,
   parseJsonArray,
   profilePatchSchema,
   profileUpdateSchema,
@@ -759,119 +758,6 @@ export async function listUsersForAdmin(db: DatabaseClient) {
   }));
 }
 
-export async function reviewMentorRequest(
-  db: DatabaseClient,
-  requestId: number,
-  input: unknown,
-) {
-  const payload = mentorRequestReviewSchema.parse(input);
-  const request = await db.get<{
-    id: number;
-    user_id: number;
-    status: RequestStatus;
-  }>(
-    `
-			SELECT r.id, r.user_id, r.status
-			FROM mentor_requests r
-			WHERE r.id = ?
-			LIMIT 1
-		`,
-    [requestId],
-  );
-
-  if (!request) {
-    throw new AppError(
-      404,
-      "mentor_request_not_found",
-      "Verification request not found",
-    );
-  }
-
-  if (request.status !== "pending") {
-    throw new AppError(
-      409,
-      "mentor_request_already_reviewed",
-      "This verification request has already been reviewed",
-    );
-  }
-
-  const now = new Date().toISOString();
-  await db.run(
-    "UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE id = ?",
-    [payload.status, now, requestId],
-  );
-  await db.run(
-    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
-    [
-      payload.status === "approved" ? "mentor" : "mentee",
-      payload.status === "approved" ? 1 : 0,
-      now,
-      request.user_id,
-    ],
-  );
-
-  return {
-    status: payload.status,
-  };
-}
-
-export async function approveUserAsMentor(db: DatabaseClient, userId: number) {
-  const current = await db.get<{ role: UserRole; is_mentor_approved: number }>(
-    "SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1",
-    [userId],
-  );
-
-  if (!current) {
-    throw new AppError(404, "user_not_found", "User not found");
-  }
-
-  if (current.role === "admin") {
-    throw new AppError(
-      403,
-      "admin_role_locked",
-      "Admin accounts cannot be changed through mentor moderation",
-    );
-  }
-
-  if (current.role === "mentor" && current.is_mentor_approved) {
-    throw new AppError(
-      409,
-      "mentor_already_active",
-      "This user is already an approved mentor.",
-    );
-  }
-
-  const now = new Date().toISOString();
-  await db.run(
-    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
-    ["mentor", 1, now, userId],
-  );
-  await db.run(
-    "UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE user_id = ? AND status = ?",
-    ["approved", now, userId, "pending"],
-  );
-
-  return { ok: true };
-}
-
-export async function adminUpdateUser(
-  db: DatabaseClient,
-  userId: number,
-  input: unknown,
-) {
-  const payload = profileUpdateSchema.parse(input);
-  const current = await db.get<{ id: number }>(
-    "SELECT id FROM users WHERE id = ? LIMIT 1",
-    [userId],
-  );
-
-  if (!current) {
-    throw new AppError(404, "user_not_found", "User not found");
-  }
-
-  return updateProfile(db, userId, payload);
-}
-
 export async function toggleRole(
   db: DatabaseClient,
   userId: number,
@@ -912,43 +798,4 @@ export async function toggleRole(
   ]);
 
   return { role: nextRole };
-}
-
-export async function revokeMentorApproval(db: DatabaseClient, userId: number) {
-  const current = await db.get<{ role: UserRole; is_mentor_approved: number }>(
-    "SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1",
-    [userId],
-  );
-
-  if (!current) {
-    throw new AppError(404, "user_not_found", "User not found");
-  }
-
-  if (current.role === "admin") {
-    throw new AppError(
-      403,
-      "admin_role_locked",
-      "Admin accounts cannot be changed through mentor moderation",
-    );
-  }
-
-  if (current.role !== "mentor" || !current.is_mentor_approved) {
-    throw new AppError(
-      409,
-      "mentor_not_active",
-      "This user is not currently an approved mentor.",
-    );
-  }
-
-  const now = new Date().toISOString();
-  await db.run(
-    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
-    ["mentee", 0, now, userId],
-  );
-  await db.run(
-    "DELETE FROM availability_slots WHERE mentor_id = ? AND start_time >= ?",
-    [userId, now],
-  );
-
-  return { ok: true };
 }
