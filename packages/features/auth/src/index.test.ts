@@ -167,7 +167,6 @@ describe("feature-auth", () => {
       fullName: "Ada Lovelace",
       email: "ADA@EXAMPLE.COM",
       password: "password123",
-      role: "mentor",
     });
     expect(registration.user.email).toBe("ada@example.com");
     expect(registration.user.fullName).toBe("Ada Lovelace");
@@ -197,7 +196,6 @@ describe("feature-auth", () => {
       fullName: "Grace Hopper",
       email: "grace@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await expect(
@@ -219,7 +217,6 @@ describe("feature-auth", () => {
       fullName: "Grace Hopper",
       email: "grace@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await expect(
@@ -227,11 +224,25 @@ describe("feature-auth", () => {
         fullName: "Grace Hopper",
         email: "grace@example.com",
         password: "password123",
-        role: "mentor",
       }),
     ).rejects.toMatchObject({
       status: 409,
       code: "email_taken",
+    });
+  });
+
+  it("rejects unsupported role selection in public registration", async () => {
+    const db = new AuthTestDatabase();
+
+    await expect(
+      registerUser(db, {
+        fullName: "Ada Lovelace",
+        email: "ada@example.com",
+        password: "password123",
+        role: "mentor",
+      }),
+    ).rejects.toMatchObject({
+      name: "ZodError",
     });
   });
 
@@ -241,7 +252,6 @@ describe("feature-auth", () => {
       fullName: "Lin",
       email: "lin@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await changePassword(db, registration.user.id, {
@@ -279,7 +289,6 @@ describe("feature-auth", () => {
       fullName: "Lin",
       email: "lin@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await deleteAccount(db, registration.user.id, {
@@ -304,7 +313,6 @@ describe("feature-auth", () => {
       fullName: "Admin User",
       email: "admin@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await db.run("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", [

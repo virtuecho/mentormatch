@@ -11,6 +11,7 @@ import {
   normalizeHttpUrl,
   profilePatchSchema,
   profileUpdateSchema,
+  registerSchema,
   serializeLocalDateTime,
   serializeZonedDateTime,
 } from "./index";
@@ -55,6 +56,17 @@ describe("shared helpers", () => {
       facebookUrl: "https://facebook.com/ada",
       websiteUrl: "https://ada.example.com",
     });
+  });
+
+  it("rejects unsupported role selection during registration", () => {
+    expect(() =>
+      registerSchema.parse({
+        fullName: "Ada Lovelace",
+        email: "ada@example.com",
+        password: "password123",
+        role: "mentor",
+      }),
+    ).toThrowError(/unrecognized key/i);
   });
 
   it("allows partial education and experience records in profile updates", () => {

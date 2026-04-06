@@ -408,12 +408,13 @@ export const experienceSchema = z.object({
   description: optionalNullableString,
 });
 
-export const registerSchema = z.object({
-  fullName: z.string().trim().min(1).max(255),
-  email: z.email().transform((value) => value.trim().toLowerCase()),
-  password: z.string().min(8).max(128),
-  role: z.enum(["mentee", "mentor"]).default("mentee"),
-});
+export const registerSchema = z
+  .object({
+    fullName: z.string().trim().min(1).max(255),
+    email: z.email().transform((value) => value.trim().toLowerCase()),
+    password: z.string().min(8).max(128),
+  })
+  .strict();
 
 export const loginSchema = z.object({
   email: z.email().transform((value) => value.trim().toLowerCase()),
