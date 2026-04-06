@@ -46,6 +46,7 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 - availability is converted to UTC on submit and rendered back in each viewer's locale
 - public routes use a top-navigation marketing shell while authenticated routes use a sidebar workspace shell, which lets landing and auth pages carry a stronger brand treatment without forking route logic
 - the homepage uses a random featured-mentor sample on each load, splitting the top spotlight card from the mentor grid so the two surfaces do not repeat the same mentor when enough approved mentors exist
+- homepage and dashboard mentor discovery cards share a common card layout so mentor identity, location badges, summary text, tags, and action buttons align consistently across browsing surfaces
 - the shared app shell collapses navigation on small screens and keeps account actions, including logout, reachable in a mobile menu
 - the mobile shell also preserves bottom spacing under the `Open navigation` control so content does not butt directly against the topbar
 

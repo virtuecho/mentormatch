@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { PageHeader, Panel, StatCard, TagList } from '@mentormatch/ui';
+	import MentorBrowseCard from '$lib/components/MentorBrowseCard.svelte';
 	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
 
 	let { data } = $props();
@@ -219,33 +220,13 @@
 			{:else}
 				{#each data.featuredMentors as mentor (mentor.id)}
 					<Panel>
-						<div class="featured-card">
-							<div class="mentor-card-header">
-								<ProfileAvatar name={mentor.fullName} src={mentor.profileImageUrl} size="lg" />
-								<div class="featured-meta grow">
-									<h3>{mentor.fullName}</h3>
-									<p>{mentor.position} · {mentor.company}</p>
-									<p>{mentor.location ?? 'Remote'}</p>
-								</div>
-								<span class="pill">Available</span>
-							</div>
-							<p class="featured-headline">
-								{mentor.expertise.join(', ') || 'Open to mentoring conversations.'}
-							</p>
-							<TagList tags={mentor.mentorSkills} />
-							<div class="cta-row">
-								<a
-									class="button secondary"
-									href={resolve('/mentor/[id]', { id: String(mentor.id) })}>View profile</a
-								>
-								{#if data.user}
-									<a
-										class="button primary"
-										href={resolve('/mentor/[id]', { id: String(mentor.id) })}>Book session</a
-									>
-								{/if}
-							</div>
-						</div>
+						<MentorBrowseCard
+							{mentor}
+							profileHref={resolve('/mentor/[id]', { id: String(mentor.id) })}
+							primaryHref={data.user ? resolve('/mentor/[id]', { id: String(mentor.id) }) : null}
+							summaryFallback="Open to mentoring conversations."
+							avatarSize="lg"
+						/>
 					</Panel>
 				{/each}
 			{/if}

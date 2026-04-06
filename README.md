@@ -69,6 +69,7 @@ Public-facing UX notes:
 - guests now use a dedicated top-navigation marketing shell, while signed-in members stay inside the sidebar workspace shell
 - the homepage is intentionally structured around an editorial hero, trust signals, the four-step process, featured mentors, and a closing CTA instead of a generic SaaS dashboard landing
 - homepage featured mentors are drawn from a random sample of approved mentors on each load, with the spotlight card and the mentor grid intentionally showing different people when enough approved mentors are available
+- homepage and dashboard mentor browsing cards share one consistent layout, with location badges and stable bottom-aligned actions
 - `/login` and `/signup` use brand-led two-column authentication layouts, but their underlying form actions and account rules remain unchanged
 - the public typography system uses `Manrope` for interface/body copy and `Crimson Text` for editorial headings
 
