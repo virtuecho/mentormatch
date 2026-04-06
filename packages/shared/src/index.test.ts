@@ -9,6 +9,7 @@ import {
   isValidTimeZone,
   mentorRequestSchema,
   normalizeHttpUrl,
+  profilePatchSchema,
   profileUpdateSchema,
   serializeLocalDateTime,
   serializeZonedDateTime,
@@ -100,6 +101,21 @@ describe("shared helpers", () => {
       company: "MentorMatch",
       position: "",
     });
+  });
+
+  it("allows true partial profile patch payloads without defaulting nested arrays", () => {
+    const payload = profilePatchSchema.parse({
+      location: "Singapore",
+      websiteUrl: "ada.example.com",
+    });
+
+    expect(payload).toMatchObject({
+      location: "Singapore",
+      websiteUrl: "https://ada.example.com",
+    });
+    expect("educations" in payload).toBe(false);
+    expect("experiences" in payload).toBe(false);
+    expect("mentorSkills" in payload).toBe(false);
   });
 
   it("normalizes mentor application document links", () => {

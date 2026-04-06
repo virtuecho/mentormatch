@@ -444,6 +444,21 @@ export const profileUpdateSchema = z.object({
   mentorSkills: z.array(z.string().trim().min(1).max(100)).default([]),
 });
 
+export const profilePatchSchema = z.object({
+  fullName: z.string().trim().min(1).max(255).optional(),
+  bio: optionalNullableString,
+  location: z.string().trim().max(255).nullable().optional(),
+  phone: z.string().trim().max(50).nullable().optional(),
+  profileImageUrl: optionalUrlSchema,
+  linkedinUrl: optionalUrlSchema,
+  instagramUrl: optionalUrlSchema,
+  facebookUrl: optionalUrlSchema,
+  websiteUrl: optionalUrlSchema,
+  educations: z.array(educationSchema).optional(),
+  experiences: z.array(experienceSchema).optional(),
+  mentorSkills: z.array(z.string().trim().min(1).max(100)).optional(),
+});
+
 export const mentorRequestSchema = z.object({
   documentUrl: optionalUrlSchema,
   note: optionalNullableString,

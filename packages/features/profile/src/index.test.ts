@@ -5,6 +5,7 @@ import {
   approveUserAsMentor,
   listMentorRequests,
   listUsersForAdmin,
+  patchProfile,
   revokeMentorApproval,
   reviewMentorRequest,
   submitMentorRequest,
@@ -443,37 +444,58 @@ class ProfileTestDatabase implements DatabaseClient {
     }
 
     if (sql.includes("UPDATE profiles")) {
-      const [
-        fullName,
-        bio,
-        location,
-        profileImageUrl,
-        linkedinUrl,
-        instagramUrl,
-        facebookUrl,
-        websiteUrl,
-        phone,
-        _updatedAt,
-        userId,
-      ] = params;
+      const userId = Number(params[params.length - 1]);
       const profile = this.profiles.find(
-        (item) => item.user_id === Number(userId),
+        (item) => item.user_id === userId,
       );
       if (!profile) {
         return { changes: 0, lastRowId: null };
       }
 
-      profile.full_name = String(fullName);
-      profile.bio = bio == null ? null : String(bio);
-      profile.location = location == null ? null : String(location);
-      profile.profile_image_url =
-        profileImageUrl == null ? null : String(profileImageUrl);
-      profile.linkedin_url = linkedinUrl == null ? null : String(linkedinUrl);
-      profile.instagram_url =
-        instagramUrl == null ? null : String(instagramUrl);
-      profile.facebook_url = facebookUrl == null ? null : String(facebookUrl);
-      profile.website_url = websiteUrl == null ? null : String(websiteUrl);
-      profile.phone = phone == null ? null : String(phone);
+      const assignments = sql
+        .slice(sql.indexOf("SET") + 3, sql.indexOf("WHERE"))
+        .split(",")
+        .map((part) => part.trim().split(/\s*=\s*/)[0]);
+      const values = params.slice(0, -1);
+
+      assignments.forEach((assignment, index) => {
+        const value = values[index];
+
+        switch (assignment) {
+          case "full_name":
+            profile.full_name = String(value);
+            break;
+          case "bio":
+            profile.bio = value == null ? null : String(value);
+            break;
+          case "location":
+            profile.location = value == null ? null : String(value);
+            break;
+          case "profile_image_url":
+            profile.profile_image_url = value == null ? null : String(value);
+            break;
+          case "linkedin_url":
+            profile.linkedin_url = value == null ? null : String(value);
+            break;
+          case "instagram_url":
+            profile.instagram_url = value == null ? null : String(value);
+            break;
+          case "facebook_url":
+            profile.facebook_url = value == null ? null : String(value);
+            break;
+          case "website_url":
+            profile.website_url = value == null ? null : String(value);
+            break;
+          case "phone":
+            profile.phone = value == null ? null : String(value);
+            break;
+          case "updated_at":
+            break;
+          default:
+            throw new Error(`Unexpected profile assignment: ${assignment}`);
+        }
+      });
+
       return { changes: 1, lastRowId: null };
     }
 
@@ -836,6 +858,51 @@ describe("feature-profile", () => {
 
     await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({
       role: "mentor",
+    });
+  });
+
+  it("patches scalar profile fields without clearing nested profile records", async () => {
+    const db = new ProfileTestDatabase();
+
+    await expect(
+      patchProfile(db, 3, {
+        location: "London",
+      }),
+    ).resolves.toMatchObject({
+      email: "grace@example.com",
+      profile: {
+        fullName: "Grace Hopper",
+        location: "London",
+        mentorSkills: expect.arrayContaining(["Architecture", "Leadership"]),
+        experiences: [
+          expect.objectContaining({
+            company: "Navy",
+            position: "Staff Engineer",
+          }),
+        ],
+      },
+    });
+  });
+
+  it("replaces only the nested collections explicitly included in a profile patch", async () => {
+    const db = new ProfileTestDatabase();
+
+    await expect(
+      patchProfile(db, 3, {
+        mentorSkills: ["Systems Thinking"],
+      }),
+    ).resolves.toMatchObject({
+      profile: {
+        fullName: "Grace Hopper",
+        location: "New York",
+        mentorSkills: ["Systems Thinking"],
+        experiences: [
+          expect.objectContaining({
+            company: "Navy",
+            position: "Staff Engineer",
+          }),
+        ],
+      },
     });
   });
 
