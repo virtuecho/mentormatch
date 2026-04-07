@@ -21,16 +21,18 @@ Only `apps/web` is deployed. Everything under `packages/*` is bundled into that 
 
 - guests can browse the homepage, sign up, and log in
 - signed-in users can search mentors, manage bookings, edit their profile, log out, change their password, and delete their account
-- new accounts are created as mentees first
+- public registration accepts only `fullName`, `email`, and `password`, and new accounts are created as mentees first
 - users who want to mentor submit an application on `/mentor-verification`
 - the mentor application is launched from a full-width dialog so the review form is not constrained to a half-page column
 - admin accounts review mentor applications on `/admin/review`
 - admin accounts can also manage users, public profile details, mentor access, and upcoming slots from dedicated admin routes
+- admin accounts are management-only and do not enter mentee booking pages, mentor hosting pages, or booking APIs
 - admin mutations are routed through a dedicated admin feature package so review, role changes, managed profile edits, and slot removals can share audit and permission rules
 - admin list screens expose search, filter, sort, pagination, and consistent apply/clear controls, with user lists sorting by account creation time and slot lists sorting by session start time
 - admin-managed profile saves post the selected `userId` explicitly and the server revalidates that scope before updating any public profile records
 - successful admin edits redirect back to the same managed `/profile?userId=...` route so the post-save page state stays attached to the edited user
 - the profile `Skills` input stores comma-separated values and the UI renders them back as individual tags
+- `PATCH /api/profile` behaves as a true partial update, so omitted nested collections stay untouched unless the request explicitly replaces them
 - `Professional skills` and `Mentorship areas` are optional free-entry fields, and applicants can withdraw a pending request before admin review
 - approved users gain mentor tools while still keeping mentee booking flows
 - profile and application links are normalized to `https://...` before validation
@@ -149,6 +151,7 @@ This package contains framework-agnostic shared code:
 - validation schemas
 - shared types
 - contracts and utility helpers
+- the strict TypeScript baseline used across workspace packages, including unchecked-index, exact-optional, and unused-code compiler guards
 
 ### `packages/ui`
 

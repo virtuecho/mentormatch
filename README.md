@@ -13,6 +13,8 @@ MentorMatch is a mentoring platform where people can create an account, find men
 
 The active application entrypoint is the SvelteKit Worker app in [apps/web](./apps/web/). Shared business logic, persistence, contracts, and UI primitives live in `packages/*`.
 
+The shared TypeScript baseline is intentionally strict: it uses `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitReturns`, `noUnusedLocals`, and `noUnusedParameters` so schema, query, and route boundaries are checked more aggressively during development.
+
 ## Workspace Layout
 
 ```text
@@ -87,6 +89,7 @@ Protected pages:
 ## Account And Approval Flows
 
 - every signed-in user can log out from the main navigation
+- public signup accepts only `fullName`, `email`, and `password`, and every new account starts as a mentee
 - account settings now include password changes and account deletion
 - mentor applications are submitted from `/mentor-verification`
 - mentor applications now open from a button-triggered full-width dialog instead of living in a fixed half-page column
@@ -94,10 +97,12 @@ Protected pages:
 - pending mentor applications can be withdrawn by the applicant and resubmitted later
 - mentor applications are reviewed by admin accounts in `/admin/review`
 - admin users can manage all users, public profiles, mentor access, and upcoming slots without changing login email or password
+- admin accounts are management-only inside the product and do not participate in mentee booking pages, mentor hosting pages, or booking APIs
 - admin review, user, and slot pages now support built-in search, filtering, sorting, pagination, and consistent apply/clear filter controls; user lists can sort by account creation time and slot lists can sort by session start time
 - admin profile edits are explicitly scoped to the selected user, so saving a managed profile can never overwrite the admin's own profile by mistake
 - after an admin saves someone else's profile, the app redirects back to that same managed profile instead of falling back to the admin's own `/profile` page
 - the profile `Skills` field accepts comma-separated entries and renders each one back out as an individual tag
+- `PATCH /api/profile` follows true partial-update semantics: omitted nested collections such as education, experience, and mentor skills remain unchanged unless they are explicitly included
 - approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
 - mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
