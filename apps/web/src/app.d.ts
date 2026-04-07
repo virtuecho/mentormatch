@@ -18,6 +18,7 @@ declare global {
 		interface Locals {
 			db: DatabaseClient | null;
 			authSecret: string | null;
+			requestId?: string;
 			user: SessionUser | null;
 		}
 		// interface PageData {}

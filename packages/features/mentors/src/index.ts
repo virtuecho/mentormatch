@@ -17,6 +17,60 @@ type MentorCardRow = {
   skill_names: string | null;
 };
 
+type MentorProfileRow = {
+  id: number;
+  email: string;
+  full_name: string;
+  bio: string | null;
+  location: string | null;
+  profile_image_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  website_url: string | null;
+  phone: string | null;
+};
+
+type MentorEducationRow = {
+  id: number;
+  university: string;
+  degree: string;
+  major: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  logo_url: string | null;
+  description: string | null;
+};
+
+type MentorExperienceRow = {
+  id: number;
+  company: string;
+  position: string;
+  industry: string | null;
+  expertise_json: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  description: string | null;
+};
+
+type MentorAvailabilityRow = {
+  id: number;
+  title: string | null;
+  booking_mode: "open" | "preset";
+  preset_topic: string | null;
+  preset_description: string | null;
+  start_time: string;
+  duration_mins: number;
+  location_type: string;
+  city: string;
+  address: string;
+  max_participants: number;
+  note: string | null;
+  is_booked: number | boolean;
+};
+
 function mapMentorCard(row: MentorCardRow) {
   return {
     id: row.id,
@@ -103,6 +157,58 @@ export async function listMentors(
   return rows.map(mapMentorCard);
 }
 
+export async function listFeaturedMentorsRandom(
+  db: DatabaseClient,
+  currentUserId: number | null,
+  limit = 3,
+) {
+  const rows = await db.all<MentorCardRow>(
+    `
+			SELECT
+				u.id,
+				p.full_name,
+				p.profile_image_url,
+				p.location,
+				(
+					SELECT e.position
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_position,
+				(
+					SELECT e.company
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_company,
+				(
+					SELECT e.expertise_json
+					FROM experiences e
+					WHERE e.user_id = u.id
+					ORDER BY e.start_year DESC
+					LIMIT 1
+				) AS latest_expertise_json,
+				(
+					SELECT GROUP_CONCAT(ms.skill_name, ',')
+					FROM mentor_skills ms
+					WHERE ms.mentor_id = u.id
+				) AS skill_names
+			FROM users u
+			JOIN profiles p ON p.user_id = u.id
+			WHERE u.role = 'mentor'
+				AND u.is_mentor_approved = 1
+				AND (? IS NULL OR u.id != ?)
+			ORDER BY RANDOM()
+			LIMIT ?
+		`,
+    [currentUserId, currentUserId, Math.max(1, Math.min(limit, 12))],
+  );
+
+  return rows.map(mapMentorCard);
+}
+
 export async function listApprovedMentorsForAdmin(
   db: DatabaseClient,
   limit = 200,
@@ -158,7 +264,7 @@ export async function getMentorProfile(
   mentorId: number,
   currentUserId: number | null = null,
 ) {
-  const mentor = await db.get<any>(
+  const mentor = await db.get<MentorProfileRow>(
     `
 			SELECT
 				u.id,
@@ -186,7 +292,7 @@ export async function getMentorProfile(
 
   const [educations, experiences, mentorSkills, availability, requestedRows] =
     await Promise.all([
-      db.all<any>(
+      db.all<MentorEducationRow>(
         `
 				SELECT id, university, degree, major, start_year, end_year, status, logo_url, description
 				FROM educations
@@ -195,7 +301,7 @@ export async function getMentorProfile(
 			`,
         [mentorId],
       ),
-      db.all<any>(
+      db.all<MentorExperienceRow>(
         `
 				SELECT id, company, position, industry, expertise_json, start_year, end_year, status, description
 				FROM experiences
@@ -208,7 +314,7 @@ export async function getMentorProfile(
         "SELECT skill_name FROM mentor_skills WHERE mentor_id = ? ORDER BY skill_name ASC",
         [mentorId],
       ),
-      db.all<any>(
+      db.all<MentorAvailabilityRow>(
         `
 				SELECT
 					id,
@@ -223,9 +329,20 @@ export async function getMentorProfile(
 					address,
 					max_participants,
 					note,
-					is_booked
+					EXISTS (
+						SELECT 1
+						FROM bookings b
+						WHERE b.availability_slot_id = availability_slots.id
+							AND b.status = 'accepted'
+					) AS is_booked
 				FROM availability_slots
-				WHERE mentor_id = ? AND start_time >= ? AND is_booked = 0
+				WHERE mentor_id = ? AND start_time >= ?
+					AND NOT EXISTS (
+						SELECT 1
+						FROM bookings b
+						WHERE b.availability_slot_id = availability_slots.id
+							AND b.status = 'accepted'
+					)
 				ORDER BY start_time ASC
 			`,
         [mentorId, new Date().toISOString()],

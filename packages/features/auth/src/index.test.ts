@@ -138,6 +138,25 @@ class AuthTestDatabase implements DatabaseClient {
 
     throw new Error(`Unexpected run query: ${sql}`);
   }
+
+  async batch(
+    statements: Array<{ sql: string; params?: QueryParams }>,
+  ): Promise<QueryResult[]> {
+    const userSnapshot = this.users.map((user) => ({ ...user }));
+    const profileSnapshot = this.profiles.map((profile) => ({ ...profile }));
+
+    try {
+      const results: QueryResult[] = [];
+      for (const statement of statements) {
+        results.push(await this.run(statement.sql, statement.params ?? []));
+      }
+      return results;
+    } catch (error) {
+      this.users = userSnapshot;
+      this.profiles = profileSnapshot;
+      throw error;
+    }
+  }
 }
 
 describe("feature-auth", () => {
@@ -148,7 +167,6 @@ describe("feature-auth", () => {
       fullName: "Ada Lovelace",
       email: "ADA@EXAMPLE.COM",
       password: "password123",
-      role: "mentor",
     });
     expect(registration.user.email).toBe("ada@example.com");
     expect(registration.user.fullName).toBe("Ada Lovelace");
@@ -178,7 +196,6 @@ describe("feature-auth", () => {
       fullName: "Grace Hopper",
       email: "grace@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await expect(
@@ -200,7 +217,6 @@ describe("feature-auth", () => {
       fullName: "Grace Hopper",
       email: "grace@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await expect(
@@ -208,11 +224,25 @@ describe("feature-auth", () => {
         fullName: "Grace Hopper",
         email: "grace@example.com",
         password: "password123",
-        role: "mentor",
       }),
     ).rejects.toMatchObject({
       status: 409,
       code: "email_taken",
+    });
+  });
+
+  it("rejects unsupported role selection in public registration", async () => {
+    const db = new AuthTestDatabase();
+
+    await expect(
+      registerUser(db, {
+        fullName: "Ada Lovelace",
+        email: "ada@example.com",
+        password: "password123",
+        role: "mentor",
+      }),
+    ).rejects.toMatchObject({
+      name: "ZodError",
     });
   });
 
@@ -222,7 +252,6 @@ describe("feature-auth", () => {
       fullName: "Lin",
       email: "lin@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await changePassword(db, registration.user.id, {
@@ -260,7 +289,6 @@ describe("feature-auth", () => {
       fullName: "Lin",
       email: "lin@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await deleteAccount(db, registration.user.id, {
@@ -285,7 +313,6 @@ describe("feature-auth", () => {
       fullName: "Admin User",
       email: "admin@example.com",
       password: "password123",
-      role: "mentee",
     });
 
     await db.run("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", [

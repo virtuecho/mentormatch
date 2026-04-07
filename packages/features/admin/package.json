@@ -1,0 +1,23 @@
+{
+  "name": "@mentormatch/feature-admin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@mentormatch/db": "workspace:*",
+    "@mentormatch/feature-availability": "workspace:*",
+    "@mentormatch/feature-profile": "workspace:*",
+    "@mentormatch/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { LOCAL_DEVELOPMENT_AUTH_SECRET, readAuthSecret } from './hooks.server';
+import {
+	LOCAL_DEVELOPMENT_AUTH_SECRET,
+	createRequestId,
+	handle,
+	readAuthSecret
+} from './hooks.server';
 
 const ORIGINAL_AUTH_SECRET = process.env.AUTH_SECRET;
 
@@ -52,5 +57,36 @@ describe('readAuthSecret', () => {
 		delete process.env.AUTH_SECRET;
 
 		expect(readAuthSecret(createEvent('https://app.example.com/login'))).toBeNull();
+	});
+});
+
+describe('request ids', () => {
+	it('prefers an incoming request id header', () => {
+		const request = new Request('https://app.example.com/profile', {
+			headers: {
+				'x-request-id': 'incoming-request-id'
+			}
+		});
+
+		expect(createRequestId(request)).toBe('incoming-request-id');
+	});
+
+	it('adds an x-request-id response header during handle', async () => {
+		const response = await handle({
+			event: {
+				request: new Request('https://app.example.com/profile'),
+				url: new URL('https://app.example.com/profile'),
+				platform: undefined,
+				cookies: {
+					get: () => undefined
+				},
+				locals: {}
+			},
+			resolve: async () => new Response('ok')
+		} as unknown as Parameters<typeof handle>[0]);
+
+		expect(response.headers.get('x-request-id')).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+		);
 	});
 });

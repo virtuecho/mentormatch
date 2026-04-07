@@ -1,4 +1,4 @@
-import { listMentors } from '@mentormatch/feature-mentors';
+import { listFeaturedMentorsRandom } from '@mentormatch/feature-mentors';
 
 export async function load({ locals }) {
 	if (!locals.db) {
@@ -6,15 +6,17 @@ export async function load({ locals }) {
 	}
 
 	try {
-		const [mentorCountRow, bookingCountRow, memberCountRow, featuredMentors] = await Promise.all([
-			locals.db.get<{ count: number }>(
-				'SELECT COUNT(*) AS count FROM users WHERE role = ? AND is_mentor_approved = 1',
-				['mentor']
-			),
-			locals.db.get<{ count: number }>('SELECT COUNT(*) AS count FROM bookings', []),
-			locals.db.get<{ count: number }>('SELECT COUNT(*) AS count FROM users', []),
-			listMentors(locals.db, locals.user?.id ?? null, { q: '', city: '', tag: '', limit: 3 })
-		]);
+		const [mentorCountRow, bookingCountRow, memberCountRow, featuredMentorPool] = await Promise.all(
+			[
+				locals.db.get<{ count: number }>(
+					'SELECT COUNT(*) AS count FROM users WHERE role = ? AND is_mentor_approved = 1',
+					['mentor']
+				),
+				locals.db.get<{ count: number }>('SELECT COUNT(*) AS count FROM bookings', []),
+				locals.db.get<{ count: number }>('SELECT COUNT(*) AS count FROM users', []),
+				listFeaturedMentorsRandom(locals.db, locals.user?.id ?? null, 4)
+			]
+		);
 
 		return {
 			user: locals.user ?? null,
@@ -23,7 +25,8 @@ export async function load({ locals }) {
 				{ label: 'Sessions', value: String(bookingCountRow?.count ?? 0), tone: 'blue' as const },
 				{ label: 'Members', value: String(memberCountRow?.count ?? 0), tone: 'amber' as const }
 			],
-			featuredMentors
+			spotlightMentor: featuredMentorPool[0] ?? null,
+			featuredMentors: featuredMentorPool.slice(1)
 		};
 	} catch (error) {
 		if (!String(error).includes('no such table')) {
@@ -41,6 +44,7 @@ function getFallbackHomepageData() {
 			{ label: 'Sessions', value: '0', tone: 'blue' as const },
 			{ label: 'Members', value: '0', tone: 'amber' as const }
 		],
+		spotlightMentor: null,
 		featuredMentors: []
 	};
 }

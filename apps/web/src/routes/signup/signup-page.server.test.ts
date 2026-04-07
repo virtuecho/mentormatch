@@ -12,7 +12,6 @@ function createSignupRequest(overrides: Record<string, string> = {}) {
 		email: 'ada@example.com',
 		password: 'password123',
 		confirmPassword: 'password123',
-		role: 'mentor',
 		agreeToTerms: 'on'
 	};
 

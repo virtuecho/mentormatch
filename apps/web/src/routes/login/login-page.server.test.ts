@@ -74,8 +74,7 @@ describe('login page action', () => {
 		await registerUser(db, {
 			fullName: 'Ada Lovelace',
 			email: 'ada@example.com',
-			password: 'password123',
-			role: 'mentor'
+			password: 'password123'
 		});
 
 		const cookieJar = createCookies();
@@ -105,8 +104,7 @@ describe('login page action', () => {
 		await registerUser(db, {
 			fullName: 'Ada Lovelace',
 			email: 'ada@example.com',
-			password: 'password123',
-			role: 'mentor'
+			password: 'password123'
 		});
 
 		const cookieJar = createCookies();
@@ -124,8 +122,7 @@ describe('login page action', () => {
 		const registration = await registerUser(db, {
 			fullName: 'Admin User',
 			email: 'admin@example.com',
-			password: 'password123',
-			role: 'mentee'
+			password: 'password123'
 		});
 		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', [
 			'admin',
@@ -154,8 +151,7 @@ describe('login page action', () => {
 		const registration = await registerUser(db, {
 			fullName: 'Pending Mentor',
 			email: 'mentor@example.com',
-			password: 'password123',
-			role: 'mentor'
+			password: 'password123'
 		});
 		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', [
 			'mentor',

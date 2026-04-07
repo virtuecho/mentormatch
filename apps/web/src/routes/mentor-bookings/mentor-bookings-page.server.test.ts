@@ -192,6 +192,21 @@ class MentorBookingsTestDatabase implements DatabaseClient {
 
 		throw new Error(`Unexpected run query: ${sql}`);
 	}
+
+	async batch(statements: Array<{ sql: string; params?: QueryParams }>): Promise<QueryResult[]> {
+		const snapshot = this.slots.map((slot) => ({ ...slot }));
+
+		try {
+			const results: QueryResult[] = [];
+			for (const statement of statements) {
+				results.push(await this.run(statement.sql, statement.params ?? []));
+			}
+			return results;
+		} catch (error) {
+			this.slots = snapshot;
+			throw error;
+		}
+	}
 }
 
 function createLocals(db = new MentorBookingsTestDatabase()): App.Locals {

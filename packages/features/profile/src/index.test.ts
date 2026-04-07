@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { DatabaseClient, QueryParams, QueryResult } from "@mentormatch/db";
 import {
-  adminUpdateUser,
-  approveUserAsMentor,
   listMentorRequests,
   listUsersForAdmin,
-  revokeMentorApproval,
-  reviewMentorRequest,
+  patchProfile,
   submitMentorRequest,
   toggleRole,
   withdrawMentorRequest,
@@ -17,6 +14,7 @@ type UserRow = {
   email: string;
   role: "mentee" | "mentor" | "admin";
   is_mentor_approved: number;
+  created_at: string;
 };
 
 type ProfileRow = {
@@ -83,13 +81,21 @@ class ProfileTestDatabase implements DatabaseClient {
       email: "mentor@example.com",
       role: "mentee",
       is_mentor_approved: 0,
+      created_at: "2026-01-01T00:00:00.000Z",
     },
-    { id: 2, email: "admin@example.com", role: "admin", is_mentor_approved: 1 },
+    {
+      id: 2,
+      email: "admin@example.com",
+      role: "admin",
+      is_mentor_approved: 1,
+      created_at: "2026-01-02T00:00:00.000Z",
+    },
     {
       id: 3,
       email: "grace@example.com",
       role: "mentor",
       is_mentor_approved: 1,
+      created_at: "2026-01-03T00:00:00.000Z",
     },
   ];
   private profiles: ProfileRow[] = [
@@ -283,6 +289,7 @@ class ProfileTestDatabase implements DatabaseClient {
           email: user.email,
           role: user.role,
           is_mentor_approved: user.is_mentor_approved,
+          created_at: user.created_at,
           full_name: profile.full_name,
           profile_image_url: profile.profile_image_url,
           location: profile.location,
@@ -312,7 +319,7 @@ class ProfileTestDatabase implements DatabaseClient {
       const userId = Number(params[0]);
       return this.mentorSkills
         .filter((item) => item.mentor_id === userId)
-        .map((item) => ({ skill_name: item.skill_name } as T));
+        .map((item) => ({ skill_name: item.skill_name }) as T);
     }
 
     throw new Error(`Unexpected all query: ${sql}`);
@@ -433,52 +440,82 @@ class ProfileTestDatabase implements DatabaseClient {
     }
 
     if (sql.includes("UPDATE profiles")) {
-      const [
-        fullName,
-        bio,
-        location,
-        profileImageUrl,
-        linkedinUrl,
-        instagramUrl,
-        facebookUrl,
-        websiteUrl,
-        phone,
-        _updatedAt,
-        userId,
-      ] = params;
-      const profile = this.profiles.find((item) => item.user_id === Number(userId));
+      const userId = Number(params[params.length - 1]);
+      const profile = this.profiles.find(
+        (item) => item.user_id === userId,
+      );
       if (!profile) {
         return { changes: 0, lastRowId: null };
       }
 
-      profile.full_name = String(fullName);
-      profile.bio = bio == null ? null : String(bio);
-      profile.location = location == null ? null : String(location);
-      profile.profile_image_url =
-        profileImageUrl == null ? null : String(profileImageUrl);
-      profile.linkedin_url = linkedinUrl == null ? null : String(linkedinUrl);
-      profile.instagram_url = instagramUrl == null ? null : String(instagramUrl);
-      profile.facebook_url = facebookUrl == null ? null : String(facebookUrl);
-      profile.website_url = websiteUrl == null ? null : String(websiteUrl);
-      profile.phone = phone == null ? null : String(phone);
+      const assignments = sql
+        .slice(sql.indexOf("SET") + 3, sql.indexOf("WHERE"))
+        .split(",")
+        .map((part) => part.trim().split(/\s*=\s*/)[0]);
+      const values = params.slice(0, -1);
+
+      assignments.forEach((assignment, index) => {
+        const value = values[index];
+
+        switch (assignment) {
+          case "full_name":
+            profile.full_name = String(value);
+            break;
+          case "bio":
+            profile.bio = value == null ? null : String(value);
+            break;
+          case "location":
+            profile.location = value == null ? null : String(value);
+            break;
+          case "profile_image_url":
+            profile.profile_image_url = value == null ? null : String(value);
+            break;
+          case "linkedin_url":
+            profile.linkedin_url = value == null ? null : String(value);
+            break;
+          case "instagram_url":
+            profile.instagram_url = value == null ? null : String(value);
+            break;
+          case "facebook_url":
+            profile.facebook_url = value == null ? null : String(value);
+            break;
+          case "website_url":
+            profile.website_url = value == null ? null : String(value);
+            break;
+          case "phone":
+            profile.phone = value == null ? null : String(value);
+            break;
+          case "updated_at":
+            break;
+          default:
+            throw new Error(`Unexpected profile assignment: ${assignment}`);
+        }
+      });
+
       return { changes: 1, lastRowId: null };
     }
 
     if (sql.includes("DELETE FROM educations WHERE user_id = ?")) {
       const userId = Number(params[0]);
-      this.educations = this.educations.filter((item) => item.user_id !== userId);
+      this.educations = this.educations.filter(
+        (item) => item.user_id !== userId,
+      );
       return { changes: 1, lastRowId: null };
     }
 
     if (sql.includes("DELETE FROM experiences WHERE user_id = ?")) {
       const userId = Number(params[0]);
-      this.experiences = this.experiences.filter((item) => item.user_id !== userId);
+      this.experiences = this.experiences.filter(
+        (item) => item.user_id !== userId,
+      );
       return { changes: 1, lastRowId: null };
     }
 
     if (sql.includes("DELETE FROM mentor_skills WHERE mentor_id = ?")) {
       const userId = Number(params[0]);
-      this.mentorSkills = this.mentorSkills.filter((item) => item.mentor_id !== userId);
+      this.mentorSkills = this.mentorSkills.filter(
+        (item) => item.mentor_id !== userId,
+      );
       return { changes: 1, lastRowId: null };
     }
 
@@ -553,6 +590,45 @@ class ProfileTestDatabase implements DatabaseClient {
 
     throw new Error(`Unexpected run query: ${sql}`);
   }
+
+  async batch(
+    statements: Array<{ sql: string; params?: QueryParams }>,
+  ): Promise<QueryResult[]> {
+    const userSnapshot = this.users.map((user) => ({ ...user }));
+    const profileSnapshot = this.profiles.map((profile) => ({ ...profile }));
+    const requestSnapshot = this.mentorRequests.map((request) => ({
+      ...request,
+    }));
+    const educationSnapshot = this.educations.map((education) => ({
+      ...education,
+    }));
+    const experienceSnapshot = this.experiences.map((experience) => ({
+      ...experience,
+    }));
+    const skillSnapshot = this.mentorSkills.map((skill) => ({ ...skill }));
+    const nextRequestId = this.nextRequestId;
+    const nextEducationId = this.nextEducationId;
+    const nextExperienceId = this.nextExperienceId;
+
+    try {
+      const results: QueryResult[] = [];
+      for (const statement of statements) {
+        results.push(await this.run(statement.sql, statement.params ?? []));
+      }
+      return results;
+    } catch (error) {
+      this.users = userSnapshot;
+      this.profiles = profileSnapshot;
+      this.mentorRequests = requestSnapshot;
+      this.educations = educationSnapshot;
+      this.experiences = experienceSnapshot;
+      this.mentorSkills = skillSnapshot;
+      this.nextRequestId = nextRequestId;
+      this.nextEducationId = nextEducationId;
+      this.nextExperienceId = nextExperienceId;
+      throw error;
+    }
+  }
 }
 
 describe("feature-profile", () => {
@@ -611,7 +687,14 @@ describe("feature-profile", () => {
       documentUrl: "https://example.com/cv.pdf",
       note: "Ready to help with interviews.",
     });
-    await reviewMentorRequest(db, 1, { status: "approved" });
+    await db.run(
+      "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
+      ["mentor", 1, "2026-04-01T00:00:00.000Z", 1],
+    );
+    await db.run(
+      "UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE id = ?",
+      ["approved", "2026-04-01T00:00:00.000Z", 1],
+    );
 
     await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({
       role: "mentor",
@@ -716,7 +799,10 @@ describe("feature-profile", () => {
       documentUrl: "https://example.com/cv.pdf",
       note: "Ready to help with interviews.",
     });
-    await reviewMentorRequest(db, 1, { status: "approved" });
+    await db.run(
+      "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
+      ["mentor", 1, "2026-04-01T00:00:00.000Z", 1],
+    );
 
     await expect(
       submitMentorRequest(db, 1, {
@@ -726,23 +812,6 @@ describe("feature-profile", () => {
     ).rejects.toMatchObject({
       status: 409,
       code: "mentor_already_approved",
-    });
-  });
-
-  it("lets admins revoke an approved mentor back to mentee mode", async () => {
-    const db = new ProfileTestDatabase();
-
-    await submitMentorRequest(db, 1, {
-      documentUrl: "https://example.com/cv.pdf",
-      note: "Ready to help with interviews.",
-    });
-    await reviewMentorRequest(db, 1, { status: "approved" });
-
-    await expect(revokeMentorApproval(db, 1)).resolves.toEqual({ ok: true });
-
-    await expect(toggleRole(db, 1, { role: "mentor" })).rejects.toMatchObject({
-      status: 403,
-      code: "mentor_approval_required",
     });
   });
 
@@ -771,42 +840,49 @@ describe("feature-profile", () => {
     );
   });
 
-  it("lets admins directly promote a mentee into mentor mode", async () => {
-    const db = new ProfileTestDatabase();
-
-    await expect(approveUserAsMentor(db, 1)).resolves.toEqual({ ok: true });
-
-    await expect(toggleRole(db, 1, { role: "mentor" })).resolves.toEqual({
-      role: "mentor",
-    });
-  });
-
-  it("lets admins update another user's public profile fields", async () => {
+  it("patches scalar profile fields without clearing nested profile records", async () => {
     const db = new ProfileTestDatabase();
 
     await expect(
-      adminUpdateUser(db, 1, {
-        fullName: "Ada Updated",
-        bio: "Updated by admin",
-        location: "Beijing",
-        phone: "12345",
-        profileImageUrl: null,
-        linkedinUrl: "linkedin.com/in/ada",
-        instagramUrl: null,
-        facebookUrl: null,
-        websiteUrl: "ada.dev",
-        mentorSkills: ["Strategy"],
-        educations: [],
-        experiences: [],
+      patchProfile(db, 3, {
+        location: "London",
       }),
     ).resolves.toMatchObject({
-      email: "mentor@example.com",
+      email: "grace@example.com",
       profile: {
-        fullName: "Ada Updated",
-        bio: "Updated by admin",
-        location: "Beijing",
-        mentorSkills: ["Strategy"],
+        fullName: "Grace Hopper",
+        location: "London",
+        mentorSkills: expect.arrayContaining(["Architecture", "Leadership"]),
+        experiences: [
+          expect.objectContaining({
+            company: "Navy",
+            position: "Staff Engineer",
+          }),
+        ],
       },
     });
   });
+
+  it("replaces only the nested collections explicitly included in a profile patch", async () => {
+    const db = new ProfileTestDatabase();
+
+    await expect(
+      patchProfile(db, 3, {
+        mentorSkills: ["Systems Thinking"],
+      }),
+    ).resolves.toMatchObject({
+      profile: {
+        fullName: "Grace Hopper",
+        location: "New York",
+        mentorSkills: ["Systems Thinking"],
+        experiences: [
+          expect.objectContaining({
+            company: "Navy",
+            position: "Staff Engineer",
+          }),
+        ],
+      },
+    });
+  });
+
 });

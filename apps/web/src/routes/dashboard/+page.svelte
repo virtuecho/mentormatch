@@ -1,9 +1,26 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { PageHeader, Panel, StatCard, TagList } from '@mentormatch/ui';
-	import ProfileAvatar from '$lib/components/ProfileAvatar.svelte';
+	import { PageHeader, Panel, StatCard } from '@mentormatch/ui';
+	import MentorBrowseCard from '$lib/components/MentorBrowseCard.svelte';
 
 	let { data } = $props();
+
+	function getMentorHref(mentorId: number) {
+		const href = new URL(
+			resolve('/mentor/[id]', { id: String(mentorId) }),
+			'https://mentormatch.local'
+		);
+		if (data.filters.city) {
+			href.searchParams.set('city', data.filters.city);
+		}
+		if (data.filters.date) {
+			href.searchParams.set('date', data.filters.date);
+		}
+		if (data.filters.time) {
+			href.searchParams.set('time', data.filters.time);
+		}
+		return `${href.pathname}${href.search}`;
+	}
 </script>
 
 <div class="page">
@@ -60,7 +77,7 @@
 					<label for="time">Preferred time</label>
 					<input id="time" name="time" type="time" value={data.filters.time} />
 				</div>
-				<div class="cta-row search-actions">
+				<div class="cta-row search-actions filter-panel-actions">
 					<button class="button primary action-button" type="submit">Search mentors</button>
 					<a class="button secondary action-button" href={resolve('/dashboard')}>Clear filters</a>
 				</div>
@@ -85,32 +102,12 @@
 		{:else}
 			{#each data.mentors as mentor (mentor.id)}
 				<Panel>
-					<div class="detail-card">
-						<div class="mentor-card-header">
-							<ProfileAvatar name={mentor.fullName} src={mentor.profileImageUrl} />
-							<div class="stack compact">
-								<h3>{mentor.fullName}</h3>
-								<p>{mentor.position} · {mentor.company}</p>
-							</div>
-							<span class="pill">{mentor.location ?? 'Remote'}</span>
-						</div>
-						<p>{mentor.expertise.join(', ') || 'Available to help with your growth goals.'}</p>
-						<TagList tags={mentor.mentorSkills} />
-						<div class="cta-row">
-							<form method="GET" action={resolve('/mentor/[id]', { id: String(mentor.id) })}>
-								<input type="hidden" name="city" value={data.filters.city} />
-								<input type="hidden" name="date" value={data.filters.date} />
-								<input type="hidden" name="time" value={data.filters.time} />
-								<button class="button secondary" type="submit">View profile</button>
-							</form>
-							<form method="GET" action={resolve('/mentor/[id]', { id: String(mentor.id) })}>
-								<input type="hidden" name="city" value={data.filters.city} />
-								<input type="hidden" name="date" value={data.filters.date} />
-								<input type="hidden" name="time" value={data.filters.time} />
-								<button class="button primary" type="submit">Book session</button>
-							</form>
-						</div>
-					</div>
+					<MentorBrowseCard
+						{mentor}
+						profileHref={getMentorHref(mentor.id)}
+						primaryHref={getMentorHref(mentor.id)}
+						summaryFallback="Available to help with your growth goals."
+					/>
 				</Panel>
 			{/each}
 		{/if}

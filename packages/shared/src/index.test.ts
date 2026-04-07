@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminMentorRequestListSchema,
+  adminSlotListSchema,
+  adminUserListSchema,
   availabilityCreateSchema,
   formatLabel,
   formatDateTimeLocalInTimeZone,
   isValidTimeZone,
   mentorRequestSchema,
   normalizeHttpUrl,
+  profilePatchSchema,
   profileUpdateSchema,
+  registerSchema,
   serializeLocalDateTime,
   serializeZonedDateTime,
 } from "./index";
@@ -53,6 +58,17 @@ describe("shared helpers", () => {
     });
   });
 
+  it("rejects unsupported role selection during registration", () => {
+    expect(() =>
+      registerSchema.parse({
+        fullName: "Ada Lovelace",
+        email: "ada@example.com",
+        password: "password123",
+        role: "mentor",
+      }),
+    ).toThrowError(/unrecognized key/i);
+  });
+
   it("allows partial education and experience records in profile updates", () => {
     const payload = profileUpdateSchema.parse({
       fullName: "Ada Lovelace",
@@ -97,6 +113,21 @@ describe("shared helpers", () => {
       company: "MentorMatch",
       position: "",
     });
+  });
+
+  it("allows true partial profile patch payloads without defaulting nested arrays", () => {
+    const payload = profilePatchSchema.parse({
+      location: "Singapore",
+      websiteUrl: "ada.example.com",
+    });
+
+    expect(payload).toMatchObject({
+      location: "Singapore",
+      websiteUrl: "https://ada.example.com",
+    });
+    expect("educations" in payload).toBe(false);
+    expect("experiences" in payload).toBe(false);
+    expect("mentorSkills" in payload).toBe(false);
   });
 
   it("normalizes mentor application document links", () => {
@@ -207,5 +238,26 @@ describe("shared helpers", () => {
         presetDescription: null,
       }),
     ).toThrowError(/20 or fewer/i);
+  });
+
+  it("parses admin list query defaults and clamps paging input", () => {
+    expect(adminUserListSchema.parse({})).toMatchObject({
+      role: "all",
+      sort: "role_then_name",
+      page: 1,
+      pageSize: 12,
+    });
+    expect(
+      adminMentorRequestListSchema.parse({ status: "pending", page: "2" }),
+    ).toMatchObject({
+      status: "pending",
+      page: 2,
+    });
+    expect(
+      adminSlotListSchema.parse({ mentorId: "7", sort: "start_desc" }),
+    ).toMatchObject({
+      mentorId: 7,
+      sort: "start_desc",
+    });
   });
 });

@@ -1,10 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import {
-	adminDeleteAvailabilitySlot,
-	listAllAvailabilitySlots
-} from '@mentormatch/feature-availability';
+	deleteAvailabilitySlotAsAdmin,
+	listAdminAvailabilitySlots
+} from '@mentormatch/feature-admin';
 import { AppError } from '@mentormatch/shared';
-import { requireDatabase, requireRole } from '$lib/server/http';
+import { requireDatabase, requirePermission } from '$lib/server/http';
+import { getRequestLogContext, logError, logInfo } from '$lib/server/log';
 
 function parseMentorId(value: string | null) {
 	if (!value) {
@@ -16,23 +17,46 @@ function parseMentorId(value: string | null) {
 }
 
 export async function load({ locals, url }) {
-	requireRole(locals, 'admin');
+	requirePermission(locals, 'admin:manage_slots');
 	const mentorId = parseMentorId(url.searchParams.get('mentorId'));
+	const result = await listAdminAvailabilitySlots(requireDatabase(locals), {
+		mentorId: mentorId ?? undefined,
+		q: url.searchParams.get('q') ?? '',
+		status: url.searchParams.get('status') ?? 'all',
+		sort: url.searchParams.get('sort') ?? 'start_asc',
+		page: url.searchParams.get('page') ?? '1'
+	});
 
 	return {
 		selectedMentorId: mentorId,
-		slots: await listAllAvailabilitySlots(requireDatabase(locals), { mentorId })
+		slots: result.items,
+		filters: result.filters,
+		pagination: {
+			page: result.page,
+			pageSize: result.pageSize,
+			total: result.total,
+			totalPages: result.totalPages
+		},
+		summary: result.summary
 	};
 }
 
 export const actions = {
 	deleteSlot: async ({ request, locals }) => {
-		requireRole(locals, 'admin');
+		const admin = requirePermission(locals, 'admin:manage_slots');
 		const form = await request.formData();
 		const slotId = Number(form.get('slotId'));
 
 		try {
-			await adminDeleteAvailabilitySlot(requireDatabase(locals), slotId);
+			await deleteAvailabilitySlotAsAdmin(
+				requireDatabase(locals),
+				{ id: admin.id, requestId: locals.requestId },
+				slotId
+			);
+			logInfo(
+				'admin_delete_slot_succeeded',
+				getRequestLogContext(locals, { targetSlotId: slotId })
+			);
 			return {
 				success: true,
 				section: 'deleteSlot',
@@ -48,7 +72,11 @@ export const actions = {
 				});
 			}
 
-			console.error(error);
+			logError(
+				'admin_delete_slot_failed',
+				error,
+				getRequestLogContext(locals, { targetSlotId: slotId })
+			);
 			return fail(500, {
 				section: 'deleteSlot',
 				slotId,

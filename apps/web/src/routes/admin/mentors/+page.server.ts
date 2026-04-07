@@ -1,32 +1,51 @@
 import { fail } from '@sveltejs/kit';
 import {
-	approveUserAsMentor,
-	listUsersForAdmin,
-	revokeMentorApproval
-} from '@mentormatch/feature-profile';
+	approveMentorAsAdmin,
+	listAdminUsers,
+	revokeMentorAsAdmin
+} from '@mentormatch/feature-admin';
 import { AppError } from '@mentormatch/shared';
-import { requireDatabase, requireRole } from '$lib/server/http';
+import { requireDatabase, requirePermission } from '$lib/server/http';
+import { getRequestLogContext, logError, logInfo } from '$lib/server/log';
 
-export async function load({ locals }) {
-	requireRole(locals, 'admin');
-	const users = await listUsersForAdmin(requireDatabase(locals));
+export async function load({ locals, url }) {
+	requirePermission(locals, 'admin:manage_users');
+	const result = await listAdminUsers(requireDatabase(locals), {
+		q: url.searchParams.get('q') ?? '',
+		role: url.searchParams.get('role') ?? 'all',
+		sort: url.searchParams.get('sort') ?? 'role_then_name',
+		page: url.searchParams.get('page') ?? '1'
+	});
 
 	return {
-		users,
-		admins: users.filter((user) => user.role === 'admin'),
-		mentors: users.filter((user) => user.isMentorApproved),
-		members: users.filter((user) => user.role !== 'admin' && !user.isMentorApproved)
+		users: result.items,
+		filters: result.filters,
+		pagination: {
+			page: result.page,
+			pageSize: result.pageSize,
+			total: result.total,
+			totalPages: result.totalPages
+		},
+		summary: result.summary
 	};
 }
 
 export const actions = {
 	approveMentor: async ({ request, locals }) => {
-		requireRole(locals, 'admin');
+		const admin = requirePermission(locals, 'admin:manage_users');
 		const form = await request.formData();
 		const userId = Number(form.get('userId'));
 
 		try {
-			await approveUserAsMentor(requireDatabase(locals), userId);
+			await approveMentorAsAdmin(
+				requireDatabase(locals),
+				{ id: admin.id, requestId: locals.requestId },
+				userId
+			);
+			logInfo(
+				'admin_approve_mentor_succeeded',
+				getRequestLogContext(locals, { targetUserId: userId })
+			);
 			return {
 				success: true,
 				section: 'approveMentor',
@@ -42,7 +61,11 @@ export const actions = {
 				});
 			}
 
-			console.error(error);
+			logError(
+				'admin_approve_mentor_failed',
+				error,
+				getRequestLogContext(locals, { targetUserId: userId })
+			);
 			return fail(500, {
 				section: 'approveMentor',
 				userId,
@@ -51,12 +74,20 @@ export const actions = {
 		}
 	},
 	revokeMentor: async ({ request, locals }) => {
-		requireRole(locals, 'admin');
+		const admin = requirePermission(locals, 'admin:manage_users');
 		const form = await request.formData();
 		const userId = Number(form.get('userId'));
 
 		try {
-			await revokeMentorApproval(requireDatabase(locals), userId);
+			await revokeMentorAsAdmin(
+				requireDatabase(locals),
+				{ id: admin.id, requestId: locals.requestId },
+				userId
+			);
+			logInfo(
+				'admin_revoke_mentor_succeeded',
+				getRequestLogContext(locals, { targetUserId: userId })
+			);
 			return {
 				success: true,
 				section: 'revokeMentor',
@@ -72,7 +103,11 @@ export const actions = {
 				});
 			}
 
-			console.error(error);
+			logError(
+				'admin_revoke_mentor_failed',
+				error,
+				getRequestLogContext(locals, { targetUserId: userId })
+			);
 			return fail(500, {
 				section: 'revokeMentor',
 				userId,

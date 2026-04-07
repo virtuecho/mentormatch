@@ -39,8 +39,7 @@ describe('settings actions', () => {
 		const registration = await registerUser(db, {
 			fullName: 'Ada Lovelace',
 			email: 'ada@example.com',
-			password: 'password123',
-			role: 'mentee'
+			password: 'password123'
 		});
 
 		const result = (await actions.toggleRole({
@@ -84,8 +83,7 @@ describe('settings actions', () => {
 		const registration = await registerUser(db, {
 			fullName: 'Ada Lovelace',
 			email: 'ada@example.com',
-			password: 'password123',
-			role: 'mentee'
+			password: 'password123'
 		});
 
 		const deletes: Array<{ name: string }> = [];
@@ -129,8 +127,7 @@ describe('settings actions', () => {
 		const registration = await registerUser(db, {
 			fullName: 'Admin User',
 			email: 'admin@example.com',
-			password: 'password123',
-			role: 'mentee'
+			password: 'password123'
 		});
 
 		await db.run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', [

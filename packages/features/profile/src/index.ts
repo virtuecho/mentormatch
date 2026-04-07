@@ -1,11 +1,11 @@
-import type { DatabaseClient } from "@mentormatch/db";
+import type { BatchStatement, DatabaseClient } from "@mentormatch/db";
 import {
   AppError,
   ensureAvatar,
   mentorModeSchema,
   mentorRequestSchema,
-  mentorRequestReviewSchema,
   parseJsonArray,
+  profilePatchSchema,
   profileUpdateSchema,
   type RequestStatus,
   type SessionUser,
@@ -47,6 +47,7 @@ type AdminUserListRow = {
   email: string;
   role: UserRole;
   is_mentor_approved: number;
+  created_at: string;
   full_name: string;
   profile_image_url: string | null;
   location: string | null;
@@ -56,6 +57,33 @@ type AdminUserListRow = {
   skill_names: string | null;
   latest_request_status: RequestStatus | null;
 };
+
+type EducationRow = {
+  id: number;
+  university: string;
+  degree: string;
+  major: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  logo_url: string | null;
+  description: string | null;
+};
+
+type ExperienceRow = {
+  id: number;
+  company: string;
+  position: string;
+  industry: string | null;
+  expertise_json: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  description: string | null;
+};
+
+type ProfileUpdatePayload = ReturnType<typeof profileUpdateSchema.parse>;
+type ProfilePatchPayload = ReturnType<typeof profilePatchSchema.parse>;
 
 function mapSessionUser(row: ProfileRow): SessionUser {
   return {
@@ -99,7 +127,7 @@ export async function getProfile(db: DatabaseClient, userId: number) {
 
   const [educations, experiences, mentorSkills, mentorRequest] =
     await Promise.all([
-      db.all<any>(
+      db.all<EducationRow>(
         `
 				SELECT id, university, degree, major, start_year, end_year, status, logo_url, description
 				FROM educations
@@ -108,7 +136,7 @@ export async function getProfile(db: DatabaseClient, userId: number) {
 			`,
         [userId],
       ),
-      db.all<any>(
+      db.all<ExperienceRow>(
         `
 				SELECT id, company, position, industry, expertise_json, start_year, end_year, status, description
 				FROM experiences
@@ -183,58 +211,73 @@ export async function getProfile(db: DatabaseClient, userId: number) {
   };
 }
 
-export async function updateProfile(
-  db: DatabaseClient,
+export function parseProfileUpdateInput(input: unknown) {
+  return profileUpdateSchema.parse(input);
+}
+
+export function parseProfilePatchInput(input: unknown) {
+  return profilePatchSchema.parse(input);
+}
+
+export function buildProfileUpdateStatements(
   userId: number,
-  input: unknown,
+  payload: ProfileUpdatePayload,
+  now: string,
 ) {
-  const payload = profileUpdateSchema.parse(input);
-  const now = new Date().toISOString();
-
-  await db.run(
-    `
-			UPDATE profiles
-			SET
-				full_name = ?,
-				bio = ?,
-				location = ?,
-				profile_image_url = ?,
-				linkedin_url = ?,
-				instagram_url = ?,
-				facebook_url = ?,
-				website_url = ?,
-				phone = ?,
-				updated_at = ?
-			WHERE user_id = ?
-		`,
-    [
-      payload.fullName,
-      payload.bio ?? null,
-      payload.location ?? null,
-      payload.profileImageUrl ?? null,
-      payload.linkedinUrl ?? null,
-      payload.instagramUrl ?? null,
-      payload.facebookUrl ?? null,
-      payload.websiteUrl ?? null,
-      payload.phone ?? null,
-      now,
-      userId,
-    ],
-  );
-
-  await db.run("DELETE FROM educations WHERE user_id = ?", [userId]);
-  await db.run("DELETE FROM experiences WHERE user_id = ?", [userId]);
-  await db.run("DELETE FROM mentor_skills WHERE mentor_id = ?", [userId]);
+  const statements: BatchStatement[] = [
+    {
+      sql: `
+        UPDATE profiles
+        SET
+          full_name = ?,
+          bio = ?,
+          location = ?,
+          profile_image_url = ?,
+          linkedin_url = ?,
+          instagram_url = ?,
+          facebook_url = ?,
+          website_url = ?,
+          phone = ?,
+          updated_at = ?
+        WHERE user_id = ?
+      `,
+      params: [
+        payload.fullName,
+        payload.bio ?? null,
+        payload.location ?? null,
+        payload.profileImageUrl ?? null,
+        payload.linkedinUrl ?? null,
+        payload.instagramUrl ?? null,
+        payload.facebookUrl ?? null,
+        payload.websiteUrl ?? null,
+        payload.phone ?? null,
+        now,
+        userId,
+      ],
+    },
+    {
+      sql: "DELETE FROM educations WHERE user_id = ?",
+      params: [userId],
+    },
+    {
+      sql: "DELETE FROM experiences WHERE user_id = ?",
+      params: [userId],
+    },
+    {
+      sql: "DELETE FROM mentor_skills WHERE mentor_id = ?",
+      params: [userId],
+    },
+  ];
 
   for (const education of payload.educations) {
-    await db.run(
-      `
-				INSERT INTO educations (
-					user_id, university, degree, major, start_year, end_year, status, logo_url, description
-				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-			`,
-      [
+    statements.push({
+      sql: `
+        INSERT INTO educations (
+          user_id, university, degree, major, start_year, end_year, status, logo_url, description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      params: [
         userId,
         education.university,
         education.degree,
@@ -245,18 +288,18 @@ export async function updateProfile(
         education.logoUrl ?? null,
         education.description ?? null,
       ],
-    );
+    });
   }
 
   for (const experience of payload.experiences) {
-    await db.run(
-      `
-				INSERT INTO experiences (
-					user_id, company, position, industry, expertise_json, start_year, end_year, status, description
-				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-			`,
-      [
+    statements.push({
+      sql: `
+        INSERT INTO experiences (
+          user_id, company, position, industry, expertise_json, start_year, end_year, status, description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      params: [
         userId,
         experience.company,
         experience.position,
@@ -267,14 +310,209 @@ export async function updateProfile(
         experience.status,
         experience.description ?? null,
       ],
-    );
+    });
   }
 
   for (const skill of payload.mentorSkills) {
-    await db.run(
-      "INSERT INTO mentor_skills (mentor_id, skill_name) VALUES (?, ?)",
-      [userId, skill],
-    );
+    statements.push({
+      sql: "INSERT INTO mentor_skills (mentor_id, skill_name) VALUES (?, ?)",
+      params: [userId, skill],
+    });
+  }
+
+  return statements;
+}
+
+function buildProfilePatchStatements(
+  userId: number,
+  payload: ProfilePatchPayload,
+  now: string,
+) {
+  const statements: BatchStatement[] = [];
+  const updateAssignments = ["updated_at = ?"];
+  const updateParams: Array<string | number | null | undefined> = [now];
+
+  if (payload.fullName !== undefined) {
+    updateAssignments.push("full_name = ?");
+    updateParams.push(payload.fullName);
+  }
+
+  if (payload.bio !== undefined) {
+    updateAssignments.push("bio = ?");
+    updateParams.push(payload.bio ?? null);
+  }
+
+  if (payload.location !== undefined) {
+    updateAssignments.push("location = ?");
+    updateParams.push(payload.location ?? null);
+  }
+
+  if (payload.profileImageUrl !== undefined) {
+    updateAssignments.push("profile_image_url = ?");
+    updateParams.push(payload.profileImageUrl ?? null);
+  }
+
+  if (payload.linkedinUrl !== undefined) {
+    updateAssignments.push("linkedin_url = ?");
+    updateParams.push(payload.linkedinUrl ?? null);
+  }
+
+  if (payload.instagramUrl !== undefined) {
+    updateAssignments.push("instagram_url = ?");
+    updateParams.push(payload.instagramUrl ?? null);
+  }
+
+  if (payload.facebookUrl !== undefined) {
+    updateAssignments.push("facebook_url = ?");
+    updateParams.push(payload.facebookUrl ?? null);
+  }
+
+  if (payload.websiteUrl !== undefined) {
+    updateAssignments.push("website_url = ?");
+    updateParams.push(payload.websiteUrl ?? null);
+  }
+
+  if (payload.phone !== undefined) {
+    updateAssignments.push("phone = ?");
+    updateParams.push(payload.phone ?? null);
+  }
+
+  const replacesEducations = payload.educations !== undefined;
+  const replacesExperiences = payload.experiences !== undefined;
+  const replacesMentorSkills = payload.mentorSkills !== undefined;
+  const hasChanges =
+    updateAssignments.length > 1 ||
+    replacesEducations ||
+    replacesExperiences ||
+    replacesMentorSkills;
+
+  if (!hasChanges) {
+    return statements;
+  }
+
+  statements.push({
+    sql: `
+      UPDATE profiles
+      SET ${updateAssignments.join(", ")}
+      WHERE user_id = ?
+    `,
+    params: [...updateParams, userId],
+  });
+
+  if (replacesEducations) {
+    const educations = payload.educations ?? [];
+    statements.push({
+      sql: "DELETE FROM educations WHERE user_id = ?",
+      params: [userId],
+    });
+
+    for (const education of educations) {
+      statements.push({
+        sql: `
+          INSERT INTO educations (
+            user_id, university, degree, major, start_year, end_year, status, logo_url, description
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        params: [
+          userId,
+          education.university,
+          education.degree,
+          education.major,
+          education.startYear,
+          education.endYear ?? null,
+          education.status,
+          education.logoUrl ?? null,
+          education.description ?? null,
+        ],
+      });
+    }
+  }
+
+  if (replacesExperiences) {
+    const experiences = payload.experiences ?? [];
+    statements.push({
+      sql: "DELETE FROM experiences WHERE user_id = ?",
+      params: [userId],
+    });
+
+    for (const experience of experiences) {
+      statements.push({
+        sql: `
+          INSERT INTO experiences (
+            user_id, company, position, industry, expertise_json, start_year, end_year, status, description
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        params: [
+          userId,
+          experience.company,
+          experience.position,
+          experience.industry ?? null,
+          JSON.stringify(experience.expertise ?? []),
+          experience.startYear,
+          experience.endYear ?? null,
+          experience.status,
+          experience.description ?? null,
+        ],
+      });
+    }
+  }
+
+  if (replacesMentorSkills) {
+    const mentorSkills = payload.mentorSkills ?? [];
+    statements.push({
+      sql: "DELETE FROM mentor_skills WHERE mentor_id = ?",
+      params: [userId],
+    });
+
+    for (const skill of mentorSkills) {
+      statements.push({
+        sql: "INSERT INTO mentor_skills (mentor_id, skill_name) VALUES (?, ?)",
+        params: [userId, skill],
+      });
+    }
+  }
+
+  return statements;
+}
+
+export async function updateProfile(
+  db: DatabaseClient,
+  userId: number,
+  input: unknown,
+) {
+  const payload = parseProfileUpdateInput(input);
+  const now = new Date().toISOString();
+
+  await db.batch(buildProfileUpdateStatements(userId, payload, now));
+
+  return getProfile(db, userId);
+}
+
+export async function patchProfile(
+  db: DatabaseClient,
+  userId: number,
+  input: unknown,
+) {
+  const payload = parseProfilePatchInput(input);
+  const current = await db.get<{ id: number }>(
+    "SELECT id FROM users WHERE id = ? LIMIT 1",
+    [userId],
+  );
+
+  if (!current) {
+    throw new AppError(404, "user_not_found", "User not found");
+  }
+
+  const statements = buildProfilePatchStatements(
+    userId,
+    payload,
+    new Date().toISOString(),
+  );
+
+  if (statements.length > 0) {
+    await db.batch(statements);
   }
 
   return getProfile(db, userId);
@@ -473,6 +711,7 @@ export async function listUsersForAdmin(db: DatabaseClient) {
 				u.email,
 				u.role,
 				u.is_mentor_approved,
+				u.created_at,
 				p.full_name,
 				p.profile_image_url,
 				p.location,
@@ -527,6 +766,7 @@ export async function listUsersForAdmin(db: DatabaseClient) {
     email: user.email,
     role: user.role,
     isMentorApproved: Boolean(user.is_mentor_approved),
+    createdAt: user.created_at,
     fullName: user.full_name,
     profileImageUrl: ensureAvatar(user.profile_image_url),
     location: user.location,
@@ -540,119 +780,6 @@ export async function listUsersForAdmin(db: DatabaseClient) {
     expertise: parseJsonArray(user.latest_expertise_json),
     latestMentorRequestStatus: user.latest_request_status,
   }));
-}
-
-export async function reviewMentorRequest(
-  db: DatabaseClient,
-  requestId: number,
-  input: unknown,
-) {
-  const payload = mentorRequestReviewSchema.parse(input);
-  const request = await db.get<{
-    id: number;
-    user_id: number;
-    status: RequestStatus;
-  }>(
-    `
-			SELECT r.id, r.user_id, r.status
-			FROM mentor_requests r
-			WHERE r.id = ?
-			LIMIT 1
-		`,
-    [requestId],
-  );
-
-  if (!request) {
-    throw new AppError(
-      404,
-      "mentor_request_not_found",
-      "Verification request not found",
-    );
-  }
-
-  if (request.status !== "pending") {
-    throw new AppError(
-      409,
-      "mentor_request_already_reviewed",
-      "This verification request has already been reviewed",
-    );
-  }
-
-  const now = new Date().toISOString();
-  await db.run(
-    "UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE id = ?",
-    [payload.status, now, requestId],
-  );
-  await db.run(
-    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
-    [
-      payload.status === "approved" ? "mentor" : "mentee",
-      payload.status === "approved" ? 1 : 0,
-      now,
-      request.user_id,
-    ],
-  );
-
-  return {
-    status: payload.status,
-  };
-}
-
-export async function approveUserAsMentor(db: DatabaseClient, userId: number) {
-  const current = await db.get<{ role: UserRole; is_mentor_approved: number }>(
-    "SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1",
-    [userId],
-  );
-
-  if (!current) {
-    throw new AppError(404, "user_not_found", "User not found");
-  }
-
-  if (current.role === "admin") {
-    throw new AppError(
-      403,
-      "admin_role_locked",
-      "Admin accounts cannot be changed through mentor moderation",
-    );
-  }
-
-  if (current.role === "mentor" && current.is_mentor_approved) {
-    throw new AppError(
-      409,
-      "mentor_already_active",
-      "This user is already an approved mentor.",
-    );
-  }
-
-  const now = new Date().toISOString();
-  await db.run(
-    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
-    ["mentor", 1, now, userId],
-  );
-  await db.run(
-    "UPDATE mentor_requests SET status = ?, reviewed_at = ? WHERE user_id = ? AND status = ?",
-    ["approved", now, userId, "pending"],
-  );
-
-  return { ok: true };
-}
-
-export async function adminUpdateUser(
-  db: DatabaseClient,
-  userId: number,
-  input: unknown,
-) {
-  const payload = profileUpdateSchema.parse(input);
-  const current = await db.get<{ id: number }>(
-    "SELECT id FROM users WHERE id = ? LIMIT 1",
-    [userId],
-  );
-
-  if (!current) {
-    throw new AppError(404, "user_not_found", "User not found");
-  }
-
-  return updateProfile(db, userId, payload);
 }
 
 export async function toggleRole(
@@ -695,43 +822,4 @@ export async function toggleRole(
   ]);
 
   return { role: nextRole };
-}
-
-export async function revokeMentorApproval(db: DatabaseClient, userId: number) {
-  const current = await db.get<{ role: UserRole; is_mentor_approved: number }>(
-    "SELECT role, is_mentor_approved FROM users WHERE id = ? LIMIT 1",
-    [userId],
-  );
-
-  if (!current) {
-    throw new AppError(404, "user_not_found", "User not found");
-  }
-
-  if (current.role === "admin") {
-    throw new AppError(
-      403,
-      "admin_role_locked",
-      "Admin accounts cannot be changed through mentor moderation",
-    );
-  }
-
-  if (current.role !== "mentor" || !current.is_mentor_approved) {
-    throw new AppError(
-      409,
-      "mentor_not_active",
-      "This user is not currently an approved mentor.",
-    );
-  }
-
-  const now = new Date().toISOString();
-  await db.run(
-    "UPDATE users SET role = ?, is_mentor_approved = ?, updated_at = ? WHERE id = ?",
-    ["mentee", 0, now, userId],
-  );
-  await db.run(
-    "DELETE FROM availability_slots WHERE mentor_id = ? AND start_time >= ?",
-    [userId, now],
-  );
-
-  return { ok: true };
 }

@@ -9,8 +9,11 @@ MentorMatch is a mentoring platform where people can create an account, find men
 - one runtime target: Cloudflare Workers
 - one primary database binding: `DB` for Cloudflare D1
 - one language across the stack: TypeScript
+- one routing rule of thumb: SvelteKit routes stay thin and delegate heavy form/action logic downward
 
-The active application entrypoint is the SvelteKit Worker app in [apps/web](/Users/admin/MentorMatch/apps/web). Shared business logic, persistence, contracts, and UI primitives live in `packages/*`.
+The active application entrypoint is the SvelteKit Worker app in [apps/web](./apps/web/). Shared business logic, persistence, contracts, and UI primitives live in `packages/*`.
+
+The shared TypeScript baseline is intentionally strict: it uses `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitReturns`, `noUnusedLocals`, and `noUnusedParameters` so schema, query, and route boundaries are checked more aggressively during development.
 
 ## Workspace Layout
 
@@ -21,16 +24,39 @@ MentorMatch/
 ├── packages/
 │   ├── config/                 # Shared toolchain configuration
 │   ├── db/                     # D1 client, schema, migrations, persistence helpers
-│   ├── features/               # Auth, mentors, availability, bookings, profile
+│   ├── features/               # Auth, admin, mentors, availability, bookings, profile
 │   ├── shared/                 # Contracts, schemas, types, utilities
 │   └── ui/                     # Reusable Svelte UI components
 ├── tests/                      # Integration, fixtures, end-to-end test folders
-├── docs/                       # Supporting docs and ADR folders
 ├── .github/workflows/          # CI/CD workflows
 ├── pnpm-workspace.yaml
 ├── turbo.json
 └── package.json
 ```
+
+## Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) covers system boundaries, package responsibilities, database relationships, state transitions, and request flow.
+
+## Scheduling Model
+
+- availability is captured in the mentor's chosen local time zone and normalized to UTC before it is stored
+- recurring publication is expanded into separate slot occurrences so one middle session can be edited or deleted independently
+- viewer-facing pages still regroup matching occurrences into a readable series so the product feels calendar-like without making writes rule-based
+
+## Route Design
+
+- `+page.server.ts` and `+server.ts` files are intended to stay as thin entrypoints: auth, parse, call service, map response
+- route-specific form mappers and command handlers live under `apps/web/src/lib/server`
+- recurrence, time-zone normalization, and availability write orchestration live in `packages/features/availability`
+- profile and settings actions reuse server command modules so form flows are not tightly coupled to one SvelteKit route file
+- admin review, user management, and slot moderation route actions delegate to `packages/features/admin` so audited moderation rules are not duplicated across pages
+
+## Admin And Observability Model
+
+- admin access is checked as explicit permissions such as `admin:review_applications`, `admin:manage_users`, and `admin:manage_slots`
+- admin writes that review applications, change mentor access, update another user's public profile, or remove slots also insert `audit_logs` rows in D1
+- each request receives an `x-request-id`, and Worker-side server code emits structured JSON logs so admin actions and scheduled jobs can be traced in production
 
 ## Frontend Entry Points
 
@@ -39,6 +65,15 @@ Public pages:
 - `/`
 - `/login`
 - `/signup`
+
+Public-facing UX notes:
+
+- guests now use a dedicated top-navigation marketing shell, while signed-in members stay inside the sidebar workspace shell
+- the homepage is intentionally structured around an editorial hero, trust signals, the four-step process, featured mentors, and a closing CTA instead of a generic SaaS dashboard landing
+- homepage featured mentors are drawn from a random sample of approved mentors on each load, with the spotlight card and the mentor grid intentionally showing different people when enough approved mentors are available
+- homepage and dashboard mentor browsing cards share one consistent layout, with location badges and stable bottom-aligned actions
+- `/login` and `/signup` use brand-led two-column authentication layouts, but their underlying form actions and account rules remain unchanged
+- the public typography system uses `Manrope` for interface/body copy and `Crimson Text` for editorial headings
 
 Protected pages:
 
@@ -54,6 +89,7 @@ Protected pages:
 ## Account And Approval Flows
 
 - every signed-in user can log out from the main navigation
+- public signup accepts only `fullName`, `email`, and `password`, and every new account starts as a mentee
 - account settings now include password changes and account deletion
 - mentor applications are submitted from `/mentor-verification`
 - mentor applications now open from a button-triggered full-width dialog instead of living in a fixed half-page column
@@ -61,9 +97,12 @@ Protected pages:
 - pending mentor applications can be withdrawn by the applicant and resubmitted later
 - mentor applications are reviewed by admin accounts in `/admin/review`
 - admin users can manage all users, public profiles, mentor access, and upcoming slots without changing login email or password
+- admin accounts are management-only inside the product and do not participate in mentee booking pages, mentor hosting pages, or booking APIs
+- admin review, user, and slot pages now support built-in search, filtering, sorting, pagination, and consistent apply/clear filter controls; user lists can sort by account creation time and slot lists can sort by session start time
 - admin profile edits are explicitly scoped to the selected user, so saving a managed profile can never overwrite the admin's own profile by mistake
 - after an admin saves someone else's profile, the app redirects back to that same managed profile instead of falling back to the admin's own `/profile` page
 - the profile `Skills` field accepts comma-separated entries and renders each one back out as an individual tag
+- `PATCH /api/profile` follows true partial-update semantics: omitted nested collections such as education, experience, and mentor skills remain unchanged unless they are explicitly included
 - approved mentors keep access to mentee flows like `/dashboard` and `/my-bookings`
 - mentor approval enables mentor tools and the admin entry is surfaced from the homepage for admin accounts
 - profile, social, and document links can be pasted as bare domains and are normalized to `https://...`
@@ -71,12 +110,15 @@ Protected pages:
 - mentor availability defaults to the creator's current local time zone, but mentors can switch it before publishing
 - mentors can publish one-off, daily, weekday, weekly, biweekly, or monthly recurring slots
 - recurring availability is stored as separate occurrences so one middle session can be edited or deleted without rewriting the whole series
-- accepted sessions are auto-completed after their scheduled end time, and mentors can also mark them complete early
+- accepted sessions are auto-completed after their scheduled end time by a Cloudflare cron job, and mentors can also mark them complete early
 - slots can either use a preset mentor agenda or let the mentee propose the topic at booking time
 - booking safeguards now prevent duplicate requests for the same slot, overlapping active mentee requests, and double-accepting the same slot
+- the booking write path relies on database constraints plus batched updates so slot state and request state stay aligned during accept, cancel, and multi-slot booking actions
+- admin moderation flows run through an explicit admin feature package and write audit records for mentor review, mentor promotion or revocation, managed profile edits, and slot removal
 - mentor availability is stored as UTC so it renders correctly per viewer locale
 - the shell switches to a compact expandable navigation on phones so long menus and logout remain reachable
 - the mobile topbar keeps visible spacing below the `Open navigation` control so the first page section does not press against it
+- public visitors now get a top navigation shell while authenticated users keep a richer workspace shell, so the landing and auth pages can feel more product-led without affecting signed-in flows
 - booking and request cards use denser metadata layouts so long session lists stay scannable on desktop and mobile
 - the product hides the implementation details from end users and keeps the wording focused on account tasks and mentoring
 
@@ -139,7 +181,7 @@ The repository uses layered verification:
 - unit tests for feature packages and app-level utilities
 - end-to-end tests for browser-visible flows
 - framework and type checks via `svelte-check` and TypeScript
-- CI runs these checks so account creation, login, logout, settings, mentor review and withdrawal, profile editing, mobile-safe navigation, recurring slot creation, booking safeguards, and availability time handling stay covered
+- CI runs these checks so account creation, login, logout, settings, mentor review and withdrawal, admin-managed profile scope, audit-backed admin actions, mobile-safe navigation, recurring slot creation, booking safeguards, and availability time handling stay covered
 
 ## Deployment
 
@@ -149,7 +191,8 @@ Important points:
 
 - the Worker name is `mentormatch`
 - the Worker build upload command is exposed at the repo root as `pnpm cf:upload`
-- root-level [wrangler.jsonc](/Users/admin/mentormatch/wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
+- root-level [wrangler.jsonc](./wrangler.jsonc) lets Cloudflare Workers Builds run from the repository root
+- `worker-entry.ts` at the repository root is the Worker wrapper entrypoint that forwards fetch traffic into SvelteKit and handles the scheduled booking-completion cron
 - `pnpm cf:upload` and `npx wrangler versions upload` both use the root Wrangler config, which runs `pnpm build` before uploading
 - D1 migrations are sourced from `packages/db/migrations` through `migrations_dir` in the Wrangler config
 - the D1 binding name is `DB`
@@ -201,4 +244,4 @@ After changing a role, sign out and sign back in so the session reflects the upd
 
 ## Architecture
 
-See [ARCHITECTURE.md](/Users/admin/mentormatch/ARCHITECTURE.md) for the request flow, package responsibilities, and deployment model.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the request flow, package responsibilities, deployment model, data relationships, and state transitions.
