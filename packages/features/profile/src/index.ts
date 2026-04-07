@@ -58,6 +58,30 @@ type AdminUserListRow = {
   latest_request_status: RequestStatus | null;
 };
 
+type EducationRow = {
+  id: number;
+  university: string;
+  degree: string;
+  major: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  logo_url: string | null;
+  description: string | null;
+};
+
+type ExperienceRow = {
+  id: number;
+  company: string;
+  position: string;
+  industry: string | null;
+  expertise_json: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  description: string | null;
+};
+
 type ProfileUpdatePayload = ReturnType<typeof profileUpdateSchema.parse>;
 type ProfilePatchPayload = ReturnType<typeof profilePatchSchema.parse>;
 
@@ -103,7 +127,7 @@ export async function getProfile(db: DatabaseClient, userId: number) {
 
   const [educations, experiences, mentorSkills, mentorRequest] =
     await Promise.all([
-      db.all<any>(
+      db.all<EducationRow>(
         `
 				SELECT id, university, degree, major, start_year, end_year, status, logo_url, description
 				FROM educations
@@ -112,7 +136,7 @@ export async function getProfile(db: DatabaseClient, userId: number) {
 			`,
         [userId],
       ),
-      db.all<any>(
+      db.all<ExperienceRow>(
         `
 				SELECT id, company, position, industry, expertise_json, start_year, end_year, status, description
 				FROM experiences

@@ -67,6 +67,43 @@ type AvailabilityRow = {
   current_booking_status: "accepted" | "completed" | null;
 };
 
+type AdminAvailabilityRow = {
+  id: number;
+  mentor_id: number;
+  title: string | null;
+  booking_mode: "open" | "preset";
+  preset_topic: string | null;
+  preset_description: string | null;
+  start_time: string;
+  duration_mins: number;
+  location_type: string;
+  city: string;
+  address: string;
+  max_participants: number;
+  note: string | null;
+  mentor_email: string;
+  mentor_full_name: string;
+  mentor_profile_image_url: string | null;
+  pending_request_count: number;
+  accepted_request_count: number;
+};
+
+type MentorAvailabilityRow = {
+  id: number;
+  title: string | null;
+  booking_mode: "open" | "preset";
+  preset_topic: string | null;
+  preset_description: string | null;
+  start_time: string;
+  duration_mins: number;
+  location_type: string;
+  city: string;
+  address: string;
+  max_participants: number;
+  note: string | null;
+  is_booked: number | boolean;
+};
+
 export type HostedAvailabilitySlot = {
   id: number;
   title: string | null;
@@ -191,7 +228,10 @@ function buildRecurringLocalStartTimes(
   const occurrences = [first];
 
   while (occurrences.length < repeatCount) {
-    const previous = occurrences[occurrences.length - 1];
+    const previous = occurrences.at(-1);
+    if (!previous) {
+      break;
+    }
     let next: LocalDateTimeParts;
 
     switch (repeatRule) {
@@ -439,7 +479,7 @@ export async function updateAvailabilitySlot(
 }
 
 export async function getMyAvailability(db: DatabaseClient, mentorId: number) {
-  return db.all(
+  return db.all<AvailabilityRow>(
     `
 			SELECT
 				id,
@@ -498,7 +538,7 @@ export async function getHostedAvailability(
   db: DatabaseClient,
   mentorId: number,
 ): Promise<HostedAvailabilitySlot[]> {
-  const rows = (await getMyAvailability(db, mentorId)) as AvailabilityRow[];
+  const rows = await getMyAvailability(db, mentorId);
   return rows.map(mapHostedAvailability);
 }
 
@@ -514,7 +554,7 @@ export async function listAllAvailabilitySlots(
     filters.push(input.mentorId);
   }
 
-  const slots = await db.all<any>(
+  const slots = await db.all<AdminAvailabilityRow>(
     `
 			SELECT
 				s.id,
@@ -582,7 +622,7 @@ export async function getMentorAvailability(
   mentorId: number,
   currentUserId: number | null,
 ) {
-  const slots = await db.all<any>(
+  const slots = await db.all<MentorAvailabilityRow>(
     `
 			SELECT
 				id,

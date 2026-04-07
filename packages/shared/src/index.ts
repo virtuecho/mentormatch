@@ -129,7 +129,6 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
-const nonEmptyString = z.string().trim().min(1);
 const optionalNullableString = z
   .string()
   .trim()

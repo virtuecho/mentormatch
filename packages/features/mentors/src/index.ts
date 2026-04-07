@@ -17,6 +17,60 @@ type MentorCardRow = {
   skill_names: string | null;
 };
 
+type MentorProfileRow = {
+  id: number;
+  email: string;
+  full_name: string;
+  bio: string | null;
+  location: string | null;
+  profile_image_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  website_url: string | null;
+  phone: string | null;
+};
+
+type MentorEducationRow = {
+  id: number;
+  university: string;
+  degree: string;
+  major: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  logo_url: string | null;
+  description: string | null;
+};
+
+type MentorExperienceRow = {
+  id: number;
+  company: string;
+  position: string;
+  industry: string | null;
+  expertise_json: string;
+  start_year: number;
+  end_year: number | null;
+  status: "on_going" | "completed";
+  description: string | null;
+};
+
+type MentorAvailabilityRow = {
+  id: number;
+  title: string | null;
+  booking_mode: "open" | "preset";
+  preset_topic: string | null;
+  preset_description: string | null;
+  start_time: string;
+  duration_mins: number;
+  location_type: string;
+  city: string;
+  address: string;
+  max_participants: number;
+  note: string | null;
+  is_booked: number | boolean;
+};
+
 function mapMentorCard(row: MentorCardRow) {
   return {
     id: row.id,
@@ -210,7 +264,7 @@ export async function getMentorProfile(
   mentorId: number,
   currentUserId: number | null = null,
 ) {
-  const mentor = await db.get<any>(
+  const mentor = await db.get<MentorProfileRow>(
     `
 			SELECT
 				u.id,
@@ -238,7 +292,7 @@ export async function getMentorProfile(
 
   const [educations, experiences, mentorSkills, availability, requestedRows] =
     await Promise.all([
-      db.all<any>(
+      db.all<MentorEducationRow>(
         `
 				SELECT id, university, degree, major, start_year, end_year, status, logo_url, description
 				FROM educations
@@ -247,7 +301,7 @@ export async function getMentorProfile(
 			`,
         [mentorId],
       ),
-      db.all<any>(
+      db.all<MentorExperienceRow>(
         `
 				SELECT id, company, position, industry, expertise_json, start_year, end_year, status, description
 				FROM experiences
@@ -260,7 +314,7 @@ export async function getMentorProfile(
         "SELECT skill_name FROM mentor_skills WHERE mentor_id = ? ORDER BY skill_name ASC",
         [mentorId],
       ),
-      db.all<any>(
+      db.all<MentorAvailabilityRow>(
         `
 				SELECT
 					id,
